@@ -1,8 +1,0 @@
-[build]
-builder = "nixpacks"
-buildCommand = "pip install -r backend/requirements.txt"
-
-[deploy]
-startCommand = "sh start.sh"
-restartPolicyType = "on_failure"
-restartPolicyMaxRetries = 3
