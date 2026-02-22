@@ -248,13 +248,70 @@ input:checked+.slider::before{transform:translateX(16px);background:#000}
         <div class="dash-grid">
           <div class="dash-main">
             <!-- M.Stock Live Chart -->
+                 <!-- Market Data Panel -->
             <div class="card">
               <div class="card-header">
                 <span class="card-title" id="chartTitle">NIFTY 50 — Market Data</span>
-                <span style="font-size:11px;color:var(--dim)">5-Min Candlestick · EMA21 · EMA34 · VWAP</span>
+                <div style="display:flex;align-items:center;gap:8px">
+                  <span id="marketStatusBadge" style="font-size:11px;font-family:var(--mono);color:var(--yellow)">● CLOSED (Last Close)</span>
+                  <span style="font-size:11px;color:var(--dim)" id="lastUpdateTime">Fetching...</span>
+                  <button onclick="fetchRealPrice()" style="background:transparent;border:1px solid var(--border2);color:var(--dim);padding:2px 8px;border-radius:4px;cursor:pointer;font-size:11px;font-family:var(--mono)" title="Refresh now">↻</button>
+                </div>
               </div>
-              <div class="tv-chart-wrap" id="tvChartWrap">
-                
+              <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr 1fr;border-bottom:1px solid var(--border)">
+                <div class="mkt-cell">
+                  <div class="mkt-lbl">LTP</div>
+                  <div class="mkt-val" id="mv_ltp" style="font-size:20px">—</div>
+                  <div class="mkt-sub" id="mv_chg" style="color:var(--dim)">—</div>
+                </div>
+                <div class="mkt-cell">
+                  <div class="mkt-lbl">Day High</div>
+                  <div class="mkt-val" id="mv_high" style="color:var(--green)">—</div>
+                </div>
+                <div class="mkt-cell">
+                  <div class="mkt-lbl">Day Low</div>
+                  <div class="mkt-val" id="mv_low" style="color:var(--red)">—</div>
+                </div>
+                <div class="mkt-cell">
+                  <div class="mkt-lbl">Prev Close</div>
+                  <div class="mkt-val" id="mv_prev">—</div>
+                </div>
+                <div class="mkt-cell">
+                  <div class="mkt-lbl">Open</div>
+                  <div class="mkt-val" id="mv_open">—</div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;border-bottom:1px solid var(--border)">
+                <div class="mkt-cell">
+                  <div class="mkt-lbl">EMA 21</div>
+                  <div class="mkt-val" id="mv_ema21" style="color:var(--blue)">—</div>
+                </div>
+                <div class="mkt-cell">
+                  <div class="mkt-lbl">EMA 34</div>
+                  <div class="mkt-val" id="mv_ema34" style="color:var(--yellow)">—</div>
+                </div>
+                <div class="mkt-cell">
+                  <div class="mkt-lbl">VWAP</div>
+                  <div class="mkt-val" id="mv_vwap" style="color:var(--purple)">—</div>
+                </div>
+                <div class="mkt-cell">
+                  <div class="mkt-lbl">EMA Signal</div>
+                  <div class="mkt-val" id="mv_ema_sig" style="font-size:12px">—</div>
+                </div>
+              </div>
+              <div style="padding:10px 16px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;border-bottom:1px solid var(--border)">
+                <span style="font-size:11px;color:var(--dim);font-family:var(--mono)">LAST 5-MIN CANDLE</span>
+                <div style="display:flex;gap:16px;font-family:var(--mono);font-size:12px">
+                  <span>O: <span id="c_open" style="color:var(--text)">—</span></span>
+                  <span>H: <span id="c_high" style="color:var(--green)">—</span></span>
+                  <span>L: <span id="c_low" style="color:var(--red)">—</span></span>
+                  <span>C: <span id="c_close" style="color:var(--text)">—</span></span>
+                </div>
+                <div id="candlePattern" style="font-size:11px;font-family:var(--mono);color:var(--yellow)"></div>
+              </div>
+              <div style="padding:10px 16px 14px">
+                <div style="font-size:10px;color:var(--dim);margin-bottom:6px;font-family:var(--mono)">LAST 20 CANDLES (5-MIN SPARKLINE)</div>
+                <div id="sparkBars" style="display:flex;align-items:flex-end;gap:2px;height:48px"></div>
               </div>
             </div>
             <!-- Signal card -->
@@ -527,8 +584,9 @@ function onInstrumentChange(){
   niftyPrice=cfg.basePrice; prevNifty=cfg.basePrice;
   updateNiftyUI(); updateATM();
   if(wsConnected) fetch(`${BACKEND_URL}/api/bot/instrument/${instrument}`,{method:'POST'}).catch(()=>{});
-  niftyPrice=0; prevNifty=0; updateNiftyUI(); // show Loading while fetching
-  fetchRealPrice(); // get real price for new instrument
+  niftyPrice=0; prevNifty=0; updateNiftyUI();
+  document.getElementById('lastUpdateTime').textContent='Fetching...';
+  fetchRealPrice();
   addLog('info',`📊 Switched to ${cfg.label}`);
   showToast(`Instrument: ${cfg.label}`);
   if(botStatus==='RUNNING'){ botControl('STOP'); showToast('Bot stopped — restart for new instrument','warning'); }
@@ -831,66 +889,91 @@ function detectCandlePattern(o,h,l,c) {
   return '';
 }
 
+// Proxy list — tried in order until one works
+const PROXIES = [
+  url => `https://corsproxy.io/?${encodeURIComponent(url)}`,
+  url => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`,
+  url => `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`,
+];
+
+async function fetchWithFallback(url) {
+  for(let i=0; i<PROXIES.length; i++){
+    try {
+      const proxyUrl = PROXIES[i](url);
+      const ctrl = new AbortController();
+      const timer = setTimeout(()=>ctrl.abort(), 5000); // 5s timeout per proxy
+      const r = await fetch(proxyUrl, {signal: ctrl.signal});
+      clearTimeout(timer);
+      if(!r.ok) continue;
+      const text = await r.text();
+      // allorigins wraps in {contents:...}, others return raw JSON
+      try {
+        const parsed = JSON.parse(text);
+        if(parsed.contents) return JSON.parse(parsed.contents); // allorigins format
+        return parsed; // raw JSON
+      } catch(e2) { continue; }
+    } catch(e) { /* try next proxy */ }
+  }
+  throw new Error('All proxies failed');
+}
+
 async function fetchRealPrice() {
   const sym = YAHOO_SYMBOLS[instrument];
   try {
-    // Fetch 1-day data with 5-min intervals for candle history
-    const url5 = 'https://query1.finance.yahoo.com/v8/finance/chart/' + sym + '?interval=5m&range=1d';
-    const proxy5 = 'https://api.allorigins.win/get?url=' + encodeURIComponent(url5);
-    const r = await fetch(proxy5);
-    const outer = await r.json();
-    const data = JSON.parse(outer.contents);
+    const url = 'https://query1.finance.yahoo.com/v8/finance/chart/' + sym + '?interval=5m&range=1d&includePrePost=false';
+    const data = await fetchWithFallback(url);
     const result = data && data.chart && data.chart.result && data.chart.result[0];
     if(!result) return;
 
-    const meta = result.meta;
+    const meta   = result.meta;
     const quotes = result.indicators && result.indicators.quote && result.indicators.quote[0];
     const timestamps = result.timestamp;
 
-    // Update price
+    // Price
     const price = meta.regularMarketPrice || meta.previousClose;
     if(price && price > 1000) {
-      prevNifty = niftyPrice || price;
+      prevNifty  = niftyPrice || price;
       niftyPrice = +price.toFixed(2);
       updateNiftyUI();
       updateATM();
     }
 
-    // Update market data panel
-    const d = {
-      ltp:   meta.regularMarketPrice || meta.previousClose,
-      high:  meta.regularMarketDayHigh || meta.previousClose,
-      low:   meta.regularMarketDayLow  || meta.previousClose,
-      prev:  meta.previousClose,
-      open:  meta.regularMarketOpen    || meta.previousClose,
-      chg:   (meta.regularMarketPrice||meta.previousClose) - (meta.previousClose||0),
-      chgPct:meta.regularMarketChangePercent || 0
-    };
-    updateMarketPanel(d);
+    // Market data panel
+    updateMarketPanel({
+      ltp:    meta.regularMarketPrice    || meta.previousClose,
+      high:   meta.regularMarketDayHigh  || meta.previousClose,
+      low:    meta.regularMarketDayLow   || meta.previousClose,
+      prev:   meta.previousClose,
+      open:   meta.regularMarketOpen     || meta.previousClose,
+      chg:    (meta.regularMarketPrice   || meta.previousClose) - (meta.previousClose || 0),
+      chgPct: meta.regularMarketChangePercent || 0
+    });
 
-    // Build candle history from 5-min data
+    // 5-min candle history
     if(quotes && timestamps) {
-      const opens=quotes.open, highs=quotes.high, lows=quotes.low, closes=quotes.close, vols=quotes.volume;
       candleHistory = [];
-      for(let i=0;i<timestamps.length;i++) {
-        if(closes[i]!=null && closes[i]>100) {
-          candleHistory.push({t:timestamps[i],o:opens[i],h:highs[i],l:lows[i],c:closes[i],v:vols[i]||0});
+      for(let i=0;i<timestamps.length;i++){
+        if(quotes.close[i]!=null && quotes.close[i]>100){
+          candleHistory.push({
+            t:quotes.close[i], o:quotes.open[i], h:quotes.high[i],
+            l:quotes.low[i],   c:quotes.close[i],v:quotes.volume[i]||0
+          });
         }
       }
       updateCandlePanel();
     }
 
-    // Update last fetch time
-    document.getElementById('lastUpdateTime').textContent='Updated '+new Date().toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
-
-    // Market status
-    const open = isMarketOpen();
+    const now = new Date().toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+    document.getElementById('lastUpdateTime').textContent = 'Updated ' + now;
+    const open  = isMarketOpen();
     const badge = document.getElementById('marketStatusBadge');
-    badge.textContent = open ? '● LIVE' : '● CLOSED';
-    badge.style.color = open ? 'var(--green)' : 'var(--red)';
+    badge.textContent  = open ? '● LIVE' : '● CLOSED (Last Close)';
+    badge.style.color  = open ? 'var(--green)' : 'var(--yellow)';
     badge.style.animation = open ? 'pulse 1.5s infinite' : 'none';
 
-  } catch(e) { console.log('Price fetch error:', e); }
+  } catch(e) {
+    document.getElementById('lastUpdateTime').textContent = 'Fetch failed — retrying...';
+  }
 }
 
 function updateMarketPanel(d) {
@@ -1006,7 +1089,7 @@ window.addEventListener('DOMContentLoaded',()=>{
   if(WS_URL){connectWS();loadTradesFromBackend();}
   // Fetch real last close / live price immediately, then every 15s
   fetchRealPrice();
-  setInterval(fetchRealPrice, 15000);
+  setInterval(fetchRealPrice, 10000); // every 10s
   // Trading sim (does not touch price)
   setInterval(runDemoSim, 3000);
 });
