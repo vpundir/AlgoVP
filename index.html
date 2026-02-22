@@ -1,974 +1,1801 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>AlgoTrader Pro</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
-<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet"/>
-<style>
-*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-:root{
-  --bg:#080a0e;--surface:#0d1117;--surface2:#12181f;
-  --border:#1e2830;--border2:#253040;
-  --text:#c8d6e5;--dim:#5a6a7a;
-  --green:#00ff9d;--yellow:#ffd166;--red:#ff6b6b;--purple:#c77dff;--blue:#00d4ff;
-  --font:'DM Sans',sans-serif;--mono:'Space Mono',monospace;
-}
-body{background:var(--bg);color:var(--text);font-family:var(--font);overflow:hidden;height:100vh}
-.app{display:flex;height:100vh;width:100vw}
-
-/* ── SIDEBAR ── */
-.sidebar{width:200px;min-width:200px;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;padding:20px 0}
-.logo{display:flex;align-items:center;gap:10px;padding:0 16px 24px;border-bottom:1px solid var(--border);margin-bottom:16px}
-.logo-icon{width:36px;height:36px;background:linear-gradient(135deg,#00ff9d22,#00ff9d44);border:1px solid #00ff9d55;border-radius:8px;display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:12px;font-weight:700;color:var(--green)}
-.logo-name{font-size:13px;font-weight:600;letter-spacing:.5px}
-.logo-sub{font-size:10px;color:var(--green);font-family:var(--mono);letter-spacing:2px}
-.nav{flex:1;padding:0 8px;display:flex;flex-direction:column;gap:2px}
-.nav-item{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:8px;cursor:pointer;background:transparent;border:none;color:var(--dim);font-family:var(--font);font-size:13px;width:100%;text-align:left;transition:all .15s}
-.nav-item:hover{background:var(--surface2);color:var(--text)}
-.nav-item.active{background:#00ff9d18;color:var(--green);border:1px solid #00ff9d28}
-.nav-icon{font-size:16px;width:20px;text-align:center}
-.sidebar-bottom{padding:16px;border-top:1px solid var(--border)}
-.ws-dot{width:7px;height:7px;border-radius:50%;display:inline-block;margin-right:6px;transition:all .3s}
-.ws-dot.connected{background:var(--green);box-shadow:0 0 6px var(--green)}
-.ws-dot.demo{background:var(--yellow);box-shadow:0 0 6px var(--yellow)}
-.ws-dot.disconnected{background:var(--red)}
-.ws-status{display:flex;align-items:center;font-size:11px;color:var(--dim)}
-
-/* ── MAIN ── */
-.main{flex:1;display:flex;flex-direction:column;overflow:hidden}
-
-/* ── TOPBAR ── */
-.topbar{height:56px;min-height:56px;background:var(--surface);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;padding:0 20px;gap:16px}
-.topbar-left{display:flex;align-items:center;gap:16px}
-.topbar-right{display:flex;align-items:center;gap:10px}
-.nifty-val{font-family:var(--mono);font-size:18px;font-weight:700;transition:color .3s}
-.nifty-val.up{color:var(--green)}
-.nifty-val.down{color:var(--red)}
-.nifty-val.flat{color:var(--text)}
-.nifty-arrow{font-size:11px;margin-left:3px}
-.atm-tag{font-size:11px;font-family:var(--mono);padding:2px 8px;border-radius:4px}
-.atm-tag.ce{background:#00ff9d15;color:var(--green);border:1px solid #00ff9d33}
-.atm-tag.pe{background:#ff6b6b15;color:var(--red);border:1px solid #ff6b6b33}
-.status-badge{display:flex;align-items:center;gap:6px;font-family:var(--mono);font-size:12px;font-weight:700;letter-spacing:1px}
-.status-dot{width:8px;height:8px;border-radius:50%}
-
-/* Mode toggle */
-.mode-toggle-wrap{display:flex;background:var(--surface2);border:1px solid var(--border2);border-radius:8px;padding:3px;gap:2px}
-.mode-seg{display:flex;align-items:center;gap:6px;padding:5px 13px;border-radius:6px;border:1px solid transparent;cursor:pointer;font-family:var(--mono);font-size:11px;font-weight:700;letter-spacing:1px;transition:all .2s;background:transparent;color:var(--dim)}
-.mode-seg-dot{width:6px;height:6px;border-radius:50%;background:currentColor;opacity:.4;transition:all .2s;display:inline-block}
-.mode-seg.paper.active{background:#ffd16618;color:var(--yellow);border-color:#ffd16640}
-.mode-seg.paper.active .mode-seg-dot{opacity:1;box-shadow:0 0 5px var(--yellow)}
-.mode-seg.live.active{background:#ff6b6b18;color:var(--red);border-color:#ff6b6b50}
-.mode-seg.live.active .mode-seg-dot{opacity:1;box-shadow:0 0 5px var(--red);animation:pulse 1.2s infinite}
-.mode-seg:hover:not(.active){background:#ffffff08;color:var(--text)}
-
-/* Control buttons */
-.ctrl-btns{display:flex;gap:6px}
-.ctrl-btn{padding:6px 14px;border-radius:6px;border:none;cursor:pointer;font-family:var(--font);font-size:12px;font-weight:600;transition:all .15s}
-.ctrl-btn:disabled{opacity:.3;cursor:not-allowed}
-.ctrl-btn.start{background:var(--green);color:#000}
-.ctrl-btn.start:hover:not(:disabled){box-shadow:0 0 14px #00ff9d55}
-.ctrl-btn.pause{background:var(--yellow);color:#000}
-.ctrl-btn.stop{background:var(--red);color:#fff}
-
-/* ── CONTENT ── */
-.content{flex:1;overflow-y:auto;padding:20px}
-.content::-webkit-scrollbar{width:4px}
-.content::-webkit-scrollbar-thumb{background:#222;border-radius:2px}
-.page{display:none}
-.page.active{display:block}
-
-/* ── CARDS ── */
-.card{background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:16px}
-.card-header{display:flex;align-items:center;justify-content:space-between;padding:13px 18px;border-bottom:1px solid var(--border)}
-.card-title{font-size:13px;font-weight:600;letter-spacing:.3px}
-
-/* Dashboard grid */
-.dash-grid{display:grid;grid-template-columns:1fr 330px;gap:16px}
-.dash-main{min-width:0}
-.dash-side{display:flex;flex-direction:column}
-
-/* Position */
-.pos-grid{display:grid;grid-template-columns:1fr 1fr;padding:14px 18px;gap:14px}
-.pos-lbl{font-size:10px;color:var(--dim);text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px}
-.pos-val{font-size:14px;font-weight:600;font-family:var(--mono)}
-.pos-badge{font-size:10px;font-family:var(--mono);background:#00ff9d18;color:var(--green);border:1px solid #00ff9d40;padding:2px 8px;border-radius:4px;font-weight:700}
-.signal-card{border-color:#00ff9d30!important;box-shadow:0 0 18px #00ff9d0d}
-.hidden{display:none!important}
-
-/* Logs */
-.logs-wrap{height:calc(100vh - 190px);overflow-y:auto;padding:10px;display:flex;flex-direction:column;gap:2px;font-family:var(--mono);font-size:11px}
-.logs-wrap::-webkit-scrollbar{width:3px}
-.logs-wrap::-webkit-scrollbar-thumb{background:#222}
-.log-row{display:flex;gap:8px;padding:3px 6px;border-radius:4px;line-height:1.6}
-.log-row:hover{background:var(--surface2)}
-.log-time{color:var(--dim);min-width:72px}
-.log-info{color:#6a8a9a}
-.log-signal{color:var(--green)}
-.log-entry-c{color:var(--blue)}
-.log-profit{color:var(--green);font-weight:700}
-.log-loss{color:var(--red);font-weight:700}
-.log-sl{color:var(--yellow)}
-.log-warn{color:var(--yellow)}
-
-/* Stat cards */
-.stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:12px;margin-bottom:16px}
-.stat-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:16px 18px}
-.stat-lbl{font-size:10px;color:var(--dim);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px}
-.stat-val{font-size:22px;font-weight:700;font-family:var(--mono)}
-
-/* Chart canvas */
-.chart-wrap{padding:10px 16px 16px;position:relative;height:210px}
-
-/* Trade table */
-.tbl-wrap{overflow-x:auto}
-.trade-tbl{width:100%;border-collapse:collapse;font-size:12px}
-.trade-tbl th{padding:10px 13px;text-align:left;color:var(--dim);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.5px;border-bottom:1px solid var(--border);background:var(--surface2)}
-.trade-tbl td{padding:9px 13px;border-bottom:1px solid var(--border);vertical-align:middle}
-.trade-tbl tr:hover td{background:var(--surface2)}
-.reason-badge{font-size:10px;font-family:var(--mono);background:var(--surface2);color:var(--dim);padding:2px 6px;border-radius:4px;border:1px solid var(--border);white-space:nowrap}
-.mode-pill{font-size:10px;font-family:var(--mono);padding:2px 7px;border-radius:4px;font-weight:700}
-.mode-pill.paper{background:var(--yellow);color:#000}
-.mode-pill.live{background:var(--red);color:#fff}
-.pnl-pos{color:var(--green);font-weight:700;font-family:var(--mono)}
-.pnl-neg{color:var(--red);font-weight:700;font-family:var(--mono)}
-.pnl-zero{color:var(--dim);font-family:var(--mono)}
-.btn-edit{background:transparent;border:1px solid var(--border2);color:var(--dim);padding:3px 7px;border-radius:4px;cursor:pointer;font-size:13px;transition:all .15s}
-.btn-edit:hover{border-color:var(--green);color:var(--green)}
-.btn-save{background:var(--green);color:#000;border:none;padding:3px 8px;border-radius:4px;cursor:pointer;font-weight:700}
-.btn-cancel{background:var(--surface2);color:var(--dim);border:1px solid var(--border);padding:3px 8px;border-radius:4px;cursor:pointer}
-.cell-inp{background:var(--surface2);border:1px solid var(--green);color:var(--text);border-radius:4px;padding:3px 6px;font-size:12px;font-family:var(--font);width:100%;min-width:80px;outline:none}
-.tbl-filter{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
-
-/* Inputs */
-.inp-sm{background:var(--surface2);border:1px solid var(--border2);color:var(--text);border-radius:6px;padding:5px 10px;font-size:12px;font-family:var(--font);outline:none}
-.inp-sm:focus{border-color:var(--green)}
-.inp-full{background:var(--surface2);border:1px solid var(--border2);color:var(--text);border-radius:6px;padding:8px 12px;font-size:13px;font-family:var(--font);outline:none;width:100%}
-.inp-full:focus{border-color:var(--green)}
-.btn-outline{background:transparent;border:1px solid var(--border2);color:var(--dim);padding:5px 12px;border-radius:6px;cursor:pointer;font-size:12px;font-family:var(--font)}
-.btn-outline:hover{border-color:var(--green);color:var(--green)}
-.btn-primary{background:var(--green);color:#000;border:none;padding:10px 24px;border-radius:8px;cursor:pointer;font-family:var(--font);font-size:13px;font-weight:600;margin:16px 20px}
-.btn-primary:hover{background:#00e88a}
-
-/* Settings */
-.settings-grid{display:grid;grid-template-columns:1fr 1fr}
-.settings-sec{padding:18px 20px;border-bottom:1px solid var(--border);border-right:1px solid var(--border)}
-.settings-sec:nth-child(even){border-right:none}
-.sec-title{font-size:11px;color:var(--green);text-transform:uppercase;letter-spacing:1px;font-weight:700;margin-bottom:14px;font-family:var(--mono)}
-.setting-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
-.setting-lbl{font-size:12px;color:var(--dim)}
-
-/* Toggle switch */
-.toggle{position:relative;display:inline-block;width:36px;height:20px;cursor:pointer}
-.toggle input{opacity:0;width:0;height:0}
-.slider{position:absolute;inset:0;background:var(--border2);border-radius:20px;transition:.2s}
-.slider::before{content:"";position:absolute;height:14px;width:14px;left:3px;bottom:3px;background:#fff;border-radius:50%;transition:.2s}
-input:checked+.slider{background:var(--green)}
-input:checked+.slider::before{transform:translateX(16px);background:#000}
-
-/* Toast */
-.toast{position:fixed;bottom:24px;right:24px;padding:12px 20px;border-radius:8px;font-size:13px;font-weight:600;z-index:9999;animation:fadeUp .3s ease;display:none}
-.toast.show{display:block}
-.toast.success{background:var(--green);color:#000}
-.toast.warning{background:var(--yellow);color:#000}
-.toast.error{background:var(--red);color:#fff}
-
-/* Bar chart custom */
-.bar-chart-wrap{padding:12px 18px 18px}
-.bar-chart-canvas{width:100%!important}
-
-@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
-@keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
-
-@media(max-width:900px){
-  .sidebar{width:56px;min-width:56px}
-  .logo-name,.logo-sub,.nav-label,.sidebar-bottom{display:none}
-  .nav-item{justify-content:center;padding:12px}
-  .dash-grid{grid-template-columns:1fr}
-  .settings-grid{grid-template-columns:1fr}
-}
-</style>
-</head>
-<body>
-<div class="app">
-
-  <!-- SIDEBAR -->
-  <aside class="sidebar">
-    <div class="logo">
-      <div class="logo-icon">AT</div>
-      <div>
-        <div class="logo-name">AlgoTrader</div>
-        <div class="logo-sub">PRO</div>
-      </div>
-    </div>
-    <nav class="nav">
-      <button class="nav-item active" onclick="showPage('dashboard',this)">
-        <span class="nav-icon">⬡</span><span class="nav-label">Dashboard</span>
-      </button>
-      <button class="nav-item" onclick="showPage('logs',this)">
-        <span class="nav-icon">≡</span><span class="nav-label">Trade Log</span>
-      </button>
-      <button class="nav-item" onclick="showPage('pnl',this)">
-        <span class="nav-icon">◈</span><span class="nav-label">PNL</span>
-      </button>
-      <button class="nav-item" onclick="showPage('settings',this)">
-        <span class="nav-icon">⚙</span><span class="nav-label">Settings</span>
-      </button>
-    </nav>
-    <div class="sidebar-bottom">
-      <div class="ws-status">
-        <span class="ws-dot demo" id="wsDot"></span>
-        <span id="wsLabel">Demo Mode</span>
-      </div>
-      <div style="font-size:10px;color:#333;margin-top:4px">v1.0 · 21/34 EMA</div>
-    </div>
-  </aside>
-
-  <!-- MAIN -->
-  <main class="main">
-
-    <!-- TOPBAR -->
-    <div class="topbar">
-      <div class="topbar-left">
-        <div style="display:flex;align-items:center;gap:6px">
-          <span style="font-size:11px;color:var(--dim)">NIFTY</span>
-          <span class="nifty-val flat" id="niftyVal">22,145.75</span>
-          <span class="nifty-arrow" id="niftyArrow">●</span>
-        </div>
-        <div style="display:flex;gap:6px">
-          <span class="atm-tag ce" id="atmCE">CE 22150</span>
-          <span class="atm-tag pe" id="atmPE">PE 22150</span>
-        </div>
-      </div>
-      <div class="topbar-right">
-        <div class="status-badge">
-          <div class="status-dot" id="statusDot" style="background:var(--red)"></div>
-          <span id="statusText" style="color:var(--red);font-family:var(--mono);font-size:12px;font-weight:700">STOPPED</span>
-        </div>
-        <div class="mode-toggle-wrap">
-          <button class="mode-seg paper active" id="btnPaper" onclick="setMode('PAPER')">
-            <span class="mode-seg-dot"></span>PAPER
-          </button>
-          <button class="mode-seg live" id="btnLive" onclick="setMode('LIVE')">
-            <span class="mode-seg-dot"></span>LIVE
-          </button>
-        </div>
-        <div class="ctrl-btns">
-          <button class="ctrl-btn start" id="btnStart" onclick="botControl('START')">▶ Start</button>
-          <button class="ctrl-btn pause" id="btnPause" onclick="botControl('PAUSE')" disabled>⏸ Pause</button>
-          <button class="ctrl-btn stop"  id="btnStop"  onclick="botControl('STOP')"  disabled>⏹ Stop</button>
-        </div>
-      </div>
-    </div>
-
-    <!-- PAGES -->
-    <div class="content">
-
-      <!-- DASHBOARD -->
-      <div class="page active" id="page-dashboard">
-        <div class="dash-grid">
-          <div class="dash-main">
-
-            <!-- Chart -->
-            <div class="card">
-              <div class="card-header">
-                <span class="card-title">NIFTY 5-Min Chart</span>
-                <span style="font-size:11px;color:var(--dim)">EMA21 · EMA34 · VWAP</span>
-              </div>
-              <div class="chart-wrap">
-                <canvas id="priceChart"></canvas>
-              </div>
-            </div>
-
-            <!-- Signal card -->
-            <div class="card signal-card hidden" id="signalCard">
-              <div class="card-header">
-                <span class="card-title">🎯 Signal Detected</span>
-                <span class="pos-badge">WAITING ENTRY</span>
-              </div>
-              <div class="pos-grid" id="signalGrid"></div>
-            </div>
-
-            <!-- Position card -->
-            <div class="card" id="posCard">
-              <div class="card-header">
-                <span class="card-title">Active Position</span>
-                <span class="pos-badge hidden" id="posBadge">LONG</span>
-              </div>
-              <div id="posEmpty" style="padding:30px;text-align:center;color:var(--dim)">No open position</div>
-              <div class="pos-grid hidden" id="posGrid"></div>
-            </div>
-
-          </div>
-          <div class="dash-side">
-            <!-- Live Logs -->
-            <div class="card" style="flex:1">
-              <div class="card-header">
-                <span class="card-title">Live Logs</span>
-                <span style="font-size:11px;color:var(--green);animation:pulse 1.5s infinite">● LIVE</span>
-              </div>
-              <div class="logs-wrap" id="logsPanel"></div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- TRADE LOG -->
-      <div class="page" id="page-logs">
-        <div class="card">
-          <div class="card-header">
-            <span class="card-title">Trade Log</span>
-            <div class="tbl-filter">
-              <input type="date" class="inp-sm" id="filterDate" onchange="renderTradeTable()"/>
-              <select class="inp-sm" id="filterMode" onchange="renderTradeTable()">
-                <option value="">All Modes</option>
-                <option value="PAPER">Paper</option>
-                <option value="LIVE">Live</option>
-              </select>
-              <button class="btn-outline" onclick="exportCSV()">↓ CSV</button>
-            </div>
-          </div>
-          <div class="tbl-wrap">
-            <table class="trade-tbl">
-              <thead>
-                <tr>
-                  <th>#</th><th>Entry Time</th><th>Entry ₹</th>
-                  <th>Exit Time</th><th>Exit ₹</th><th>Reason</th>
-                  <th>PNL</th><th>Mode</th><th>Edit</th>
-                </tr>
-              </thead>
-              <tbody id="tradeTbody"></tbody>
-            </table>
-            <div id="noTrades" style="padding:40px;text-align:center;color:var(--dim);display:none">No trades found</div>
-          </div>
-        </div>
-      </div>
-
-      <!-- PNL -->
-      <div class="page" id="page-pnl">
-        <div class="stat-grid" id="statGrid"></div>
-        <div class="card">
-          <div class="card-header">
-            <span class="card-title">Daily PNL</span>
-            <select class="inp-sm" id="pnlMonthFilter" onchange="renderPNL()">
-              <option value="">All Time</option>
-            </select>
-          </div>
-          <div class="bar-chart-wrap" style="height:230px">
-            <canvas id="pnlChart"></canvas>
-          </div>
-        </div>
-      </div>
-
-      <!-- SETTINGS -->
-      <div class="page" id="page-settings">
-        <div class="card">
-          <div class="card-header"><span class="card-title">Settings</span></div>
-          <div class="settings-grid">
-            <div class="settings-sec">
-              <div class="sec-title">API Keys</div>
-              <div class="setting-row"><span class="setting-lbl">M.Stock API Key</span><input class="inp-full" type="password" id="s_apikey" placeholder="Enter key..."/></div>
-              <div class="setting-row"><span class="setting-lbl">Demo Mode</span><label class="toggle"><input type="checkbox" id="s_demo" checked/><span class="slider"></span></label></div>
-            </div>
-            <div class="settings-sec">
-              <div class="sec-title">Risk Management</div>
-              <div class="setting-row"><span class="setting-lbl">Quantity (lots)</span><input class="inp-sm" type="number" id="s_qty" value="130"/></div>
-              <div class="setting-row"><span class="setting-lbl">Max SL Points</span><input class="inp-sm" type="number" id="s_maxsl" value="20"/></div>
-            </div>
-            <div class="settings-sec">
-              <div class="sec-title">Trading Hours</div>
-              <div class="setting-row"><span class="setting-lbl">Entry Start</span><input class="inp-sm" type="time" id="s_start" value="09:25"/></div>
-              <div class="setting-row"><span class="setting-lbl">Entry End</span><input class="inp-sm" type="time" id="s_end" value="15:00"/></div>
-              <div class="setting-row"><span class="setting-lbl">Exit All At</span><input class="inp-sm" type="time" id="s_exit" value="15:10"/></div>
-            </div>
-            <div class="settings-sec">
-              <div class="sec-title">Filters</div>
-              <div class="setting-row"><span class="setting-lbl">VWAP Signal Filter</span><label class="toggle"><input type="checkbox" id="s_vwap_sig" checked/><span class="slider"></span></label></div>
-              <div class="setting-row"><span class="setting-lbl">VWAP Exit</span><label class="toggle"><input type="checkbox" id="s_vwap_exit" checked/><span class="slider"></span></label></div>
-              <div class="setting-row"><span class="setting-lbl">Mon/Tue Next Week</span><label class="toggle"><input type="checkbox" id="s_nextweek" checked/><span class="slider"></span></label></div>
-            </div>
-            <div class="settings-sec">
-              <div class="sec-title">Paper Trading</div>
-              <div class="setting-row"><span class="setting-lbl">Capital (₹)</span><input class="inp-sm" type="number" id="s_capital" value="500000"/></div>
-              <div class="setting-row"><span class="setting-lbl">Slippage (pts)</span><input class="inp-sm" type="number" id="s_slip" value="1"/></div>
-            </div>
-            <div class="settings-sec">
-              <div class="sec-title">Backend URL</div>
-              <div class="setting-row" style="flex-direction:column;align-items:flex-start;gap:8px">
-                <span class="setting-lbl">Your Railway URL</span>
-                <input class="inp-full" type="text" id="s_backendUrl" placeholder="https://xxxx.railway.app"/>
-              </div>
-            </div>
-          </div>
-          <button class="btn-primary" onclick="saveSettings()">Save Settings</button>
-        </div>
-      </div>
-
-    </div><!-- /content -->
-  </main>
-</div>
-
-<!-- TOAST -->
-<div class="toast" id="toast"></div>
-
-<script>
-// ══════════════════════════════════════════════════════
-// CONFIG — paste your Railway URL in Settings page
-// ══════════════════════════════════════════════════════
-let BACKEND_URL = localStorage.getItem('backendUrl') || '';
-let WS_URL      = BACKEND_URL ? BACKEND_URL.replace('https','wss').replace('http','ws') + '/ws' : '';
-
-// ══════════════════════════════════════════════════════
-// STATE
-// ══════════════════════════════════════════════════════
-let botStatus   = 'STOPPED';
-let mode        = 'PAPER';
-let niftyPrice  = 22145.75;
-let prevNifty   = 22145.75;
-let activePos   = null;
-let currentSig  = null;
-let trades      = generateDemoTrades();
-let candles     = generateCandles(60);
-let ws          = null;
-let wsConnected = false;
-let editingId   = null;
-let pnlChartInst= null;
-let priceChartInst = null;
-
-// ══════════════════════════════════════════════════════
-// DEMO DATA
-// ══════════════════════════════════════════════════════
-function generateDemoTrades() {
-  const reasons = ['SL_HIT','TRAILING_SL','VWAP_EXIT','SHOOTING_STAR_EXIT','TIME_EXIT_3_10','SWING_LOW_EXIT','MANUAL_EXIT'];
-  const arr = [];
-  for (let i = 0; i < 28; i++) {
-    const d = new Date();
-    d.setDate(d.getDate() - Math.floor(i/2));
-    const h = 9 + Math.floor(Math.random()*5);
-    const m = Math.floor(Math.random()*55);
-    const entryT = new Date(d.getFullYear(),d.getMonth(),d.getDate(),h,m);
-    const exitT  = new Date(entryT.getTime() + (30+Math.random()*90)*60000);
-    const ep = 180 + Math.random()*40;
-    const pnl = (Math.random()>0.42?1:-1)*(Math.random()*25+3)*130;
-    arr.push({
-      id: i+1,
-      time_of_entry: entryT.toISOString(),
-      entry_price: +ep.toFixed(2),
-      time_of_exit: exitT.toISOString(),
-      exit_price: +(ep + pnl/130).toFixed(2),
-      reason_of_exit: reasons[Math.floor(Math.random()*reasons.length)],
-      pnl: +pnl.toFixed(2),
-      mode: Math.random()>0.3?'PAPER':'LIVE',
-      quantity: 130
-    });
-  }
-  return arr.sort((a,b)=>new Date(b.time_of_entry)-new Date(a.time_of_entry));
-}
-
-function generateCandles(n=60) {
-  let p = 220 + Math.random()*30;
-  return Array.from({length:n},(_,i)=>{
-    const o = p + (Math.random()-.5)*8;
-    const c = o + (Math.random()-.45)*15;
-    const h = Math.max(o,c)+Math.random()*8;
-    const l = Math.min(o,c)-Math.random()*8;
-    p = c;
-    return {
-      time:`${9+Math.floor(i*5/60)}:${String((i*5)%60).padStart(2,'0')}`,
-      close:+c.toFixed(2), high:+h.toFixed(2), low:+l.toFixed(2),
-      ema21:+(c*.97+Math.random()*3).toFixed(2),
-      ema34:+(c*.95+Math.random()*3).toFixed(2),
-      vwap:+(c*.98+Math.random()*4).toFixed(2)
-    };
-  });
-}
-
-// ══════════════════════════════════════════════════════
-// UTILITIES
-// ══════════════════════════════════════════════════════
-const fmt = n => (+(n||0)).toLocaleString('en-IN',{maximumFractionDigits:2});
-const fmtT = iso => iso ? new Date(iso).toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'}) : '—';
-const fmtD = iso => iso ? new Date(iso).toLocaleDateString('en-IN',{day:'2-digit',month:'short'}) : '—';
-
-function showToast(msg, type='success') {
-  const t = document.getElementById('toast');
-  t.textContent = msg;
-  t.className = `toast show ${type}`;
-  setTimeout(()=>t.className='toast',3000);
-}
-
-function addLog(type, msg) {
-  const panel = document.getElementById('logsPanel');
-  const time = new Date().toLocaleTimeString('en-IN');
-  const row = document.createElement('div');
-  row.className = 'log-row';
-  row.innerHTML = `<span class="log-time">${time}</span><span class="log-${type}">${msg}</span>`;
-  panel.appendChild(row);
-  panel.scrollTop = panel.scrollHeight;
-  // Keep max 300 logs
-  while(panel.children.length > 300) panel.removeChild(panel.firstChild);
-}
-
-// ══════════════════════════════════════════════════════
-// NAV
-// ══════════════════════════════════════════════════════
-function showPage(id, btn) {
-  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
-  document.querySelectorAll('.nav-item').forEach(b=>b.classList.remove('active'));
-  document.getElementById('page-'+id).classList.add('active');
-  if(btn) btn.classList.add('active');
-  if(id==='pnl') renderPNL();
-  if(id==='logs') renderTradeTable();
-}
-
-// ══════════════════════════════════════════════════════
-// BOT CONTROL
-// ══════════════════════════════════════════════════════
-async function botControl(action) {
-  if(wsConnected) {
-    try {
-      const url = `${BACKEND_URL}/api/bot/${action.toLowerCase()}`;
-      await fetch(url, {method:'POST'});
-    } catch(e) { /* fallback to demo */ }
-  }
-  // Update local state
-  botStatus = action === 'START' ? 'RUNNING' : action === 'PAUSE' ? 'PAUSED' : 'STOPPED';
-  updateStatusUI();
-  const msgs = {START:`🚀 Bot started in ${mode} mode`, PAUSE:'⏸ Bot paused', STOP:'⏹ Bot stopped'};
-  const types = {START:'success', PAUSE:'warning', STOP:'error'};
-  addLog(action==='START'?'signal':action==='PAUSE'?'warn':'info', msgs[action]);
-  showToast(msgs[action], types[action]);
-  if(action==='STOP'){activePos=null;currentSig=null;updatePositionUI();updateSignalUI();}
-}
-
-function updateStatusUI() {
-  const colors = {RUNNING:'var(--green)', PAUSED:'var(--yellow)', STOPPED:'var(--red)'};
-  const dot = document.getElementById('statusDot');
-  const txt = document.getElementById('statusText');
-  dot.style.background = colors[botStatus];
-  dot.style.boxShadow = botStatus==='RUNNING'?`0 0 8px ${colors[botStatus]}`:'none';
-  dot.style.animation = botStatus==='RUNNING'?'pulse 1.5s infinite':'none';
-  txt.style.color = colors[botStatus];
-  txt.textContent = botStatus;
-  document.getElementById('btnStart').disabled = botStatus==='RUNNING';
-  document.getElementById('btnPause').disabled = botStatus!=='RUNNING';
-  document.getElementById('btnStop').disabled  = botStatus==='STOPPED';
-}
-
-// ══════════════════════════════════════════════════════
-// MODE TOGGLE
-// ══════════════════════════════════════════════════════
-async function setMode(m) {
-  if(m === mode) return;
-  if(m==='LIVE' && !document.getElementById('s_apikey').value && !BACKEND_URL) {
-    showToast('Add API key + Backend URL in Settings first!','error');
-    return;
-  }
-  mode = m;
-  document.getElementById('btnPaper').classList.toggle('active', m==='PAPER');
-  document.getElementById('btnLive').classList.toggle('active',  m==='LIVE');
-  if(wsConnected) { try{ await fetch(`${BACKEND_URL}/api/bot/mode/${m}`,{method:'POST'}); }catch(e){} }
-  addLog('warn', `Switched to ${m} mode`);
-  showToast(`${m} mode active`, m==='LIVE'?'error':'warning');
-}
-
-// ══════════════════════════════════════════════════════
-// WEBSOCKET
-// ══════════════════════════════════════════════════════
-function connectWS() {
-  if(!WS_URL) return;
-  try {
-    ws = new WebSocket(WS_URL);
-    ws.onopen = () => {
-      wsConnected = true;
-      document.getElementById('wsDot').className = 'ws-dot connected';
-      document.getElementById('wsLabel').textContent = 'Connected';
-      addLog('signal','✅ Connected to backend');
-    };
-    ws.onmessage = e => {
-      try { handleWSMessage(JSON.parse(e.data)); } catch(err){}
-    };
-    ws.onclose = () => {
-      wsConnected = false;
-      document.getElementById('wsDot').className = 'ws-dot disconnected';
-      document.getElementById('wsLabel').textContent = 'Reconnecting...';
-      setTimeout(connectWS, 5000);
-    };
-    ws.onerror = () => ws.close();
-  } catch(e) {}
-}
-
-function handleWSMessage(msg) {
-  switch(msg.type) {
-    case 'state_update':
-      niftyPrice = msg.data.nifty_price || niftyPrice;
-      updateNiftyUI();
-      if(msg.data.active_position !== undefined) { activePos = msg.data.active_position; updatePositionUI(); }
-      if(msg.data.current_signal !== undefined)  { currentSig = msg.data.current_signal; updateSignalUI(); }
-      if(msg.data.atm_ce) document.getElementById('atmCE').textContent = 'CE '+msg.data.atm_ce.split(' ')[1];
-      if(msg.data.atm_pe) document.getElementById('atmPE').textContent = 'PE '+msg.data.atm_pe.split(' ')[1];
-      break;
-    case 'signal':   currentSig = msg.data; updateSignalUI(); addLog('signal','🎯 Signal: Buy @ ₹'+fmt(msg.data.buy_price)); break;
-    case 'entry':    activePos  = msg.data; updatePositionUI(); addLog('entry-c','✅ Entry @ ₹'+fmt(msg.data.entry_price)); break;
-    case 'sl_update':if(activePos){ activePos.current_sl=msg.data.sl; updatePositionUI(); addLog('sl','📈 SL → ₹'+fmt(msg.data.sl)); } break;
-    case 'exit':
-      const p=msg.data.pnl;
-      addLog(p>=0?'profit':'loss',(p>=0?'🟢':'🔴')+' Exit @ ₹'+fmt(msg.data.exit_price)+' | PNL: ₹'+fmt(p)+' | '+msg.data.reason);
-      trades.unshift({id:trades.length+1, time_of_entry:activePos?.time_of_entry||new Date().toISOString(),
-        entry_price:activePos?.entry_price, time_of_exit:msg.data.time_of_exit,
-        exit_price:msg.data.exit_price, reason_of_exit:msg.data.reason, pnl:p, mode, quantity:130});
-      activePos=null; currentSig=null; updatePositionUI(); updateSignalUI();
-      break;
-    case 'bot_status': botStatus=msg.status; updateStatusUI(); break;
-    case 'mode_change': mode=msg.mode; document.getElementById('btnPaper').classList.toggle('active',msg.mode==='PAPER'); document.getElementById('btnLive').classList.toggle('active',msg.mode==='LIVE'); break;
-  }
-}
-
-// ══════════════════════════════════════════════════════
-// NIFTY TICKER UI
-// ══════════════════════════════════════════════════════
-function updateNiftyUI() {
-  const el = document.getElementById('niftyVal');
-  const ar = document.getElementById('niftyArrow');
-  const dir = niftyPrice > prevNifty ? 'up' : niftyPrice < prevNifty ? 'down' : 'flat';
-  el.className = `nifty-val ${dir}`;
-  el.textContent = fmt(niftyPrice);
-  ar.textContent = dir==='up'?'▲':dir==='down'?'▼':'●';
-  ar.style.color = dir==='up'?'var(--green)':dir==='down'?'var(--red)':'var(--dim)';
-}
-
-// ══════════════════════════════════════════════════════
-// POSITION UI
-// ══════════════════════════════════════════════════════
-function updatePositionUI() {
-  const empty = document.getElementById('posEmpty');
-  const grid  = document.getElementById('posGrid');
-  const badge = document.getElementById('posBadge');
-  if(!activePos) { empty.style.display='block'; grid.classList.add('hidden'); badge.classList.add('hidden'); return; }
-  empty.style.display='none'; grid.classList.remove('hidden'); badge.classList.remove('hidden');
-  const pnl = (niftyPrice - activePos.entry_price) * (activePos.quantity||130);
-  const R   = activePos.entry_price - activePos.initial_sl;
-  const rr  = R>0 ? ((niftyPrice-activePos.entry_price)/R).toFixed(2) : '—';
-  grid.innerHTML = `
-    <div><div class="pos-lbl">Symbol</div><div class="pos-val">${activePos.symbol||'NIFTY ATM CE'}</div></div>
-    <div><div class="pos-lbl">Entry</div><div class="pos-val">₹${fmt(activePos.entry_price)}</div></div>
-    <div><div class="pos-lbl">Initial SL</div><div class="pos-val" style="color:var(--red)">₹${fmt(activePos.initial_sl)}</div></div>
-    <div><div class="pos-lbl">Current SL</div><div class="pos-val" style="color:var(--yellow)">₹${fmt(activePos.current_sl)}</div></div>
-    <div><div class="pos-lbl">LTP</div><div class="pos-val">₹${fmt(niftyPrice)}</div></div>
-    <div><div class="pos-lbl">R:R</div><div class="pos-val" style="color:var(--purple)">${rr}</div></div>
-    <div><div class="pos-lbl">Quantity</div><div class="pos-val">${activePos.quantity||130}</div></div>
-    <div><div class="pos-lbl">Unrealized PNL</div><div class="pos-val" style="color:${pnl>=0?'var(--green)':'var(--red)'}">₹${fmt(pnl)}</div></div>
-  `;
-}
-
-// ══════════════════════════════════════════════════════
-// SIGNAL UI
-// ══════════════════════════════════════════════════════
-function updateSignalUI() {
-  const card = document.getElementById('signalCard');
-  if(!currentSig) { card.classList.add('hidden'); return; }
-  card.classList.remove('hidden');
-  document.getElementById('signalGrid').innerHTML = `
-    <div><div class="pos-lbl">Type</div><div class="pos-val" style="color:var(--green)">${currentSig.type||'CE_BUY'}</div></div>
-    <div><div class="pos-lbl">Buy Price</div><div class="pos-val">₹${fmt(currentSig.buy_price)}</div></div>
-    <div><div class="pos-lbl">Initial SL</div><div class="pos-val" style="color:var(--red)">₹${fmt(currentSig.initial_sl)}</div></div>
-    <div><div class="pos-lbl">SL Distance</div><div class="pos-val">${fmt(currentSig.sl_distance)} pts</div></div>
-    <div><div class="pos-lbl">Signal High</div><div class="pos-val">₹${fmt(currentSig.signal_high)}</div></div>
-    <div><div class="pos-lbl">VWAP</div><div class="pos-val" style="color:var(--purple)">₹${fmt(currentSig.vwap)}</div></div>
-  `;
-}
-
-// ══════════════════════════════════════════════════════
-// PRICE CHART
-// ══════════════════════════════════════════════════════
-function initPriceChart() {
-  const ctx = document.getElementById('priceChart').getContext('2d');
-  priceChartInst = new Chart(ctx, {
-    type:'line',
-    data:{
-      labels: candles.map(c=>c.time),
-      datasets:[
-        {label:'Price', data:candles.map(c=>c.close), borderColor:'#c8d6e5', borderWidth:1.5, pointRadius:0, tension:.3},
-        {label:'EMA21', data:candles.map(c=>c.ema21), borderColor:'#00d4ff', borderWidth:1, borderDash:[4,2], pointRadius:0, tension:.3},
-        {label:'EMA34', data:candles.map(c=>c.ema34), borderColor:'#ffd166', borderWidth:1, borderDash:[4,2], pointRadius:0, tension:.3},
-        {label:'VWAP',  data:candles.map(c=>c.vwap),  borderColor:'#c77dff', borderWidth:1, pointRadius:0, tension:.3},
-      ]
-    },
-    options:{
-      responsive:true, maintainAspectRatio:false, animation:false,
-      plugins:{legend:{labels:{color:'#555',font:{size:11},boxWidth:20}}},
-      scales:{
-        x:{ticks:{color:'#555',font:{size:10},maxTicksLimit:10}, grid:{color:'#1a2230'}, border:{color:'#1a2230'}},
-        y:{ticks:{color:'#555',font:{size:10}}, grid:{color:'#1a2230'}, border:{color:'#1a2230'}}
-      }
-    }
-  });
-}
-
-function updatePriceChart(newCandle) {
-  if(!priceChartInst) return;
-  const d = priceChartInst.data;
-  d.labels.push(newCandle.time); d.labels.shift();
-  d.datasets[0].data.push(newCandle.close);   d.datasets[0].data.shift();
-  d.datasets[1].data.push(newCandle.ema21);    d.datasets[1].data.shift();
-  d.datasets[2].data.push(newCandle.ema34);    d.datasets[2].data.shift();
-  d.datasets[3].data.push(newCandle.vwap);     d.datasets[3].data.shift();
-  priceChartInst.update('none');
-}
-
-// ══════════════════════════════════════════════════════
-// TRADE TABLE
-// ══════════════════════════════════════════════════════
-function renderTradeTable() {
-  const dateF = document.getElementById('filterDate').value;
-  const modeF = document.getElementById('filterMode').value;
-  let filtered = trades.filter(t=>{
-    if(dateF && !t.time_of_entry.startsWith(dateF)) return false;
-    if(modeF && t.mode!==modeF) return false;
-    return true;
-  });
-  const tbody = document.getElementById('tradeTbody');
-  tbody.innerHTML = '';
-  document.getElementById('noTrades').style.display = filtered.length?'none':'block';
-  filtered.forEach(t=>{
-    const pnlClass = t.pnl>0?'pnl-pos':t.pnl<0?'pnl-neg':'pnl-zero';
-    if(editingId===t.id) {
-      tbody.innerHTML += `
-        <tr>
-          <td>${t.id}</td>
-          <td><input class="cell-inp" id="e_entry_time" value="${t.time_of_entry?.slice(0,16)||''}" type="datetime-local" style="min-width:150px"/></td>
-          <td><input class="cell-inp" id="e_entry_price" value="${t.entry_price||''}" type="number" step="0.25" style="min-width:80px"/></td>
-          <td style="font-size:11px;font-family:var(--mono)">${fmtD(t.time_of_exit)} ${fmtT(t.time_of_exit)}</td>
-          <td><input class="cell-inp" id="e_exit_price" value="${t.exit_price||''}" type="number" step="0.25" style="min-width:80px"/></td>
-          <td>
-            <select class="cell-inp" id="e_reason">
-              ${['SL_HIT','TRAILING_SL','VWAP_EXIT','SHOOTING_STAR_EXIT','TIME_EXIT_3_10','SWING_LOW_EXIT','MANUAL_EXIT']
-                .map(r=>`<option${r===t.reason_of_exit?' selected':''}>${r}</option>`).join('')}
-            </select>
-          </td>
-          <td><span class="${pnlClass}">₹${fmt(t.pnl)}</span></td>
-          <td><span class="mode-pill ${(t.mode||'').toLowerCase()}">${t.mode||''}</span></td>
-          <td>
-            <button class="btn-save" onclick="saveEdit(${t.id})">✓</button>
-            <button class="btn-cancel" onclick="cancelEdit()" style="margin-left:3px">✗</button>
-          </td>
-        </tr>`;
-    } else {
-      tbody.innerHTML += `
-        <tr>
-          <td>${t.id}</td>
-          <td style="font-size:11px;font-family:var(--mono)">${fmtD(t.time_of_entry)} ${fmtT(t.time_of_entry)}</td>
-          <td style="font-family:var(--mono)">₹${fmt(t.entry_price)}</td>
-          <td style="font-size:11px;font-family:var(--mono)">${fmtD(t.time_of_exit)} ${fmtT(t.time_of_exit)}</td>
-          <td style="font-family:var(--mono)">₹${fmt(t.exit_price)}</td>
-          <td><span class="reason-badge">${t.reason_of_exit||'—'}</span></td>
-          <td><span class="${pnlClass}">₹${fmt(t.pnl)}</span></td>
-          <td><span class="mode-pill ${(t.mode||'').toLowerCase()}">${t.mode||''}</span></td>
-          <td><button class="btn-edit" onclick="startEdit(${t.id})">✏</button></td>
-        </tr>`;
-    }
-  });
-}
-
-function startEdit(id) { editingId=id; renderTradeTable(); }
-function cancelEdit()  { editingId=null; renderTradeTable(); }
-
-function saveEdit(id) {
-  const ep  = parseFloat(document.getElementById('e_entry_price').value);
-  const xp  = parseFloat(document.getElementById('e_exit_price').value);
-  const reason = document.getElementById('e_reason').value;
-  const pnl = xp ? (xp-ep)*130 : null;
-  trades = trades.map(t => t.id===id ? {...t, entry_price:ep, exit_price:xp, reason_of_exit:reason, pnl:pnl?+pnl.toFixed(2):t.pnl} : t);
-  editingId = null;
-  renderTradeTable();
-  if(wsConnected) {
-    fetch(`${BACKEND_URL}/api/trades/${id}`,{method:'PUT',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({entry_price:ep,exit_price:xp,reason_of_exit:reason})}).catch(()=>{});
-  }
-  showToast('Trade updated');
-}
-
-function exportCSV() {
-  const headers = ['ID','Entry Time','Entry Price','Exit Time','Exit Price','Reason','PNL','Mode'];
-  const rows = trades.map(t=>[t.id,t.time_of_entry,t.entry_price,t.time_of_exit,t.exit_price,t.reason_of_exit,t.pnl,t.mode]);
-  const csv = [headers,...rows].map(r=>r.join(',')).join('\n');
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(new Blob([csv],{type:'text/csv'}));
-  a.download = `trades_${new Date().toISOString().slice(0,10)}.csv`;
-  a.click();
-}
-
-// ══════════════════════════════════════════════════════
-// PNL DASHBOARD
-// ══════════════════════════════════════════════════════
-function renderPNL() {
-  // Stats
-  const closed = trades.filter(t=>t.pnl!=null);
-  const totalPNL = closed.reduce((s,t)=>s+(t.pnl||0),0);
-  const wins = closed.filter(t=>t.pnl>0);
-  const losses = closed.filter(t=>t.pnl<0);
-  const winRate = closed.length ? (wins.length/closed.length*100).toFixed(1) : 0;
-  const avgWin  = wins.length   ? (wins.reduce((s,t)=>s+t.pnl,0)/wins.length).toFixed(0) : 0;
-  const avgLoss = losses.length ? (losses.reduce((s,t)=>s+t.pnl,0)/losses.length).toFixed(0) : 0;
-  const rr = avgLoss ? Math.abs(avgWin/avgLoss).toFixed(2) : '—';
-
-  document.getElementById('statGrid').innerHTML = [
-    {l:'Total PNL', v:`₹${fmt(totalPNL)}`, c:totalPNL>=0?'var(--green)':'var(--red)'},
-    {l:'Total Trades', v:closed.length, c:'var(--text)'},
-    {l:'Win Rate', v:`${winRate}%`, c:'var(--yellow)'},
-    {l:'Avg Win', v:`₹${fmt(avgWin)}`, c:'var(--green)'},
-    {l:'Avg Loss', v:`₹${fmt(avgLoss)}`, c:'var(--red)'},
-    {l:'Avg R:R', v:rr, c:'var(--purple)'},
-  ].map(s=>`<div class="stat-card"><div class="stat-lbl">${s.l}</div><div class="stat-val" style="color:${s.c}">${s.v}</div></div>`).join('');
-
-  // Daily PNL data
-  const dailyMap = {};
-  closed.forEach(t=>{
-    const day = t.time_of_entry?.slice(0,10); if(!day) return;
-    if(!dailyMap[day]) dailyMap[day]=0;
-    dailyMap[day]+=t.pnl;
-  });
-  const days = Object.entries(dailyMap).sort().slice(-30);
-  const labels = days.map(([d])=>new Date(d).toLocaleDateString('en-IN',{day:'2-digit',month:'short'}));
-  const values = days.map(([,v])=>+v.toFixed(2));
-  const colors = values.map(v=>v>=0?'rgba(0,255,157,0.7)':'rgba(255,107,107,0.7)');
-
-  if(pnlChartInst) pnlChartInst.destroy();
-  const ctx = document.getElementById('pnlChart').getContext('2d');
-  pnlChartInst = new Chart(ctx,{
-    type:'bar',
-    data:{labels, datasets:[{label:'Daily PNL',data:values,backgroundColor:colors,borderRadius:4}]},
-    options:{
-      responsive:true, maintainAspectRatio:false,
-      plugins:{legend:{display:false}, tooltip:{callbacks:{label:c=>`₹${fmt(c.raw)}`}}},
-      scales:{
-        x:{ticks:{color:'#555',font:{size:10}}, grid:{color:'#1a2230'}, border:{color:'#1a2230'}},
-        y:{ticks:{color:'#555',font:{size:10},callback:v=>`₹${(v/1000).toFixed(0)}k`}, grid:{color:'#1a2230'}, border:{color:'#1a2230'}}
-      }
-    }
-  });
-}
-
-// ══════════════════════════════════════════════════════
-// SETTINGS
-// ══════════════════════════════════════════════════════
-function saveSettings() {
-  const url = document.getElementById('s_backendUrl').value.trim().replace(/\/$/,'');
-  if(url) {
-    BACKEND_URL = url;
-    WS_URL = url.replace('https','wss').replace('http','ws') + '/ws';
-    localStorage.setItem('backendUrl', url);
-    connectWS();
-    loadTradesFromBackend();
-  }
-  showToast('Settings saved');
-  addLog('info','⚙ Settings saved. Backend: '+(url||'Demo mode'));
-}
-
-async function loadTradesFromBackend() {
-  if(!BACKEND_URL) return;
-  try {
-    const r = await fetch(`${BACKEND_URL}/api/trades`);
-    const data = await r.json();
-    if(Array.isArray(data) && data.length) { trades = data; renderTradeTable(); }
-  } catch(e) {}
-}
-
-// ══════════════════════════════════════════════════════
-// DEMO SIMULATION (when no backend)
-// ══════════════════════════════════════════════════════
-let simTick = 0;
-function runDemoSim() {
-  simTick++;
-  prevNifty = niftyPrice;
-  niftyPrice = +(niftyPrice + (Math.random()-.48)*6).toFixed(2);
-  updateNiftyUI();
-
-  // New candle every ~12 ticks
-  if(simTick%12===0) {
-    const prev = candles[candles.length-1];
-    const o=prev.close, c=+(o+(Math.random()-.45)*14).toFixed(2);
-    const newC = {
-      time:new Date().toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'}),
-      close:c, high:+(Math.max(o,c)+Math.random()*8).toFixed(2),
-      low:+(Math.min(o,c)-Math.random()*8).toFixed(2),
-      ema21:+(c*.97+Math.random()*3).toFixed(2),
-      ema34:+(c*.95+Math.random()*3).toFixed(2),
-      vwap:+(c*.98+Math.random()*4).toFixed(2),
-    };
-    candles.push(newC); candles.shift();
-    updatePriceChart(newC);
-  }
-
-  if(botStatus==='RUNNING') {
-    // Random signal
-    if(!activePos && !currentSig && Math.random()>.97) {
-      currentSig = {type:'CE_BUY', buy_price:+(niftyPrice+2).toFixed(2),
-        initial_sl:+(niftyPrice-15).toFixed(2), sl_distance:17,
-        signal_high:niftyPrice, signal_low:+(niftyPrice-16).toFixed(2), vwap:+(niftyPrice-5).toFixed(2)};
-      updateSignalUI();
-      addLog('signal',`🎯 Signal: Buy @ ₹${fmt(currentSig.buy_price)} | SL: ₹${fmt(currentSig.initial_sl)}`);
-    }
-    // Entry
-    if(currentSig && !activePos && Math.random()>.75) {
-      activePos = {symbol:'NIFTY ATM CE', entry_price:currentSig.buy_price,
-        initial_sl:currentSig.initial_sl, current_sl:currentSig.initial_sl,
-        signal_high:currentSig.signal_high, quantity:130, mode, time_of_entry:new Date().toISOString()};
-      currentSig=null; updatePositionUI(); updateSignalUI();
-      addLog('entry-c',`✅ Entry: NIFTY ATM CE @ ₹${fmt(activePos.entry_price)} | Qty: 130`);
-    }
-    // Trail SL
-    if(activePos) {
-      const R = activePos.entry_price - activePos.initial_sl;
-      const profit = niftyPrice - activePos.entry_price;
-      const rr = R>0?profit/R:0;
-      if(rr>=1) {
-        const newSL = Math.max(activePos.current_sl, activePos.entry_price + (rr>=2?R*(rr-1)-3:0));
-        if(newSL>activePos.current_sl) { activePos.current_sl=+newSL.toFixed(2); addLog('sl',`📈 SL trailed → ₹${fmt(activePos.current_sl)}`); }
-      }
-      updatePositionUI();
-      // Random exit
-      if(Math.random()>.98) {
-        const reasons=['SL_HIT','TRAILING_SL','VWAP_EXIT','TIME_EXIT_3_10'];
-        const reason=reasons[Math.floor(Math.random()*reasons.length)];
-        const xp=niftyPrice;
-        const pnl=+((xp-activePos.entry_price)*130).toFixed(2);
-        trades.unshift({id:trades.length+1, time_of_entry:activePos.time_of_entry,
-          entry_price:activePos.entry_price, time_of_exit:new Date().toISOString(),
-          exit_price:xp, reason_of_exit:reason, pnl, mode, quantity:130});
-        addLog(pnl>=0?'profit':'loss',`${pnl>=0?'🟢':'🔴'} Exit @ ₹${fmt(xp)} | PNL: ₹${fmt(pnl)} | ${reason}`);
-        activePos=null; updatePositionUI();
-      }
-    }
-  }
-}
-
-// ══════════════════════════════════════════════════════
-// INIT
-// ══════════════════════════════════════════════════════
-window.addEventListener('DOMContentLoaded', ()=>{
-  // Load saved backend URL
-  const saved = localStorage.getItem('backendUrl');
-  if(saved) { document.getElementById('s_backendUrl').value=saved; BACKEND_URL=saved; WS_URL=saved.replace('https','wss').replace('http','ws')+'/ws'; }
-
-  initPriceChart();
-  updateStatusUI();
-  updatePositionUI();
-  updateSignalUI();
-
-  // Seed logs
-  addLog('info','System initialized. Paper trading mode active.');
-  addLog('info',`Nifty50: ₹${fmt(niftyPrice)} | ATM: 22150`);
-  addLog('info','Scanning for 21/34 EMA crossovers...');
-
-  // Connect WS if URL saved
-  if(WS_URL) { connectWS(); loadTradesFromBackend(); }
-
-  // Demo sim runs always — backend WS overrides values when connected
-  setInterval(runDemoSim, 2000);
-});
-</script>
-</body>
-</html>
+# Comprehensive Scrum Master Interview Questions & Answers
+
+*Based on CareersTalk Video Series - Collection of 50+ Real Interview Questions*
+
+---
+
+## TABLE OF CONTENTS
+1. [Scrum Master Fundamentals](#scrum-master-fundamentals)
+2. [Team Management & Dynamics](#team-management--dynamics)
+3. [Agile Ceremonies & Events](#agile-ceremonies--events)
+4. [Sprint Planning & Execution](#sprint-planning--execution)
+5. [Metrics & KPIs](#metrics--kpis)
+6. [Scaling & SAFe Framework](#scaling--safe-framework)
+7. [AI in Scrum Mastery](#ai-in-scrum-mastery)
+8. [Advanced Scenario-Based Questions](#advanced-scenario-based-questions)
+
+---
+
+## SCRUM MASTER FUNDAMENTALS
+
+### Q1: What is the role and responsibility of a Scrum Master? How is it different from a Project Manager?
+
+**Answer:**
+
+A Scrum Master is a **servant leader** and facilitator, not a manager or commander.
+
+**Core Responsibilities:**
+- **For Product Owner**: Guide them in backlog grooming and requirement prioritization, ensuring proper guidance rather than command
+- **For Developers**: Help them be self-organized, pick their own user stories, and understand outcomes
+- **For Management**: Educate them about Scrum, Agile values, roles, and how to support team success
+- **General**: Act as a protector of the team from external interruptions while fostering self-organization
+
+**Key Difference from Project Manager:**
+- **Project Manager**: Makes decisions for the team, raises access requests on behalf of employees (creates dependency)
+- **Scrum Master**: Guides the team to solve problems independently, teaches them step-by-step how to access resources, encouraging self-organization
+
+**Example**: When a developer needs tool access:
+- **PM**: "I'll raise the ticket for you"
+- **SM**: "Here's the process; let me guide you through it so you can do it yourself next time"
+
+**Real-World Application**: Scrum Masters should facilitate everything by making sure everyone is aligned, self-organized, and self-sufficient while protecting the team from over-commitment and external pressures.
+
+---
+
+### Q2: What do you understand by "People over Process"?
+
+**Answer:**
+
+"People over Process" means **prioritizing employee well-being and concerns over rigid processes**, but it does NOT mean abandoning all processes.
+
+**Common Misconception:**
+Many think this manifesto means no processes are needed in Scrum, which is wrong.
+
+**Reality:**
+- Processes are necessary for consistency and knowledge retention
+- Example: When a developer leaves unexpectedly, onboarding documentation (a process) helps new team members understand the project without overwhelming others
+- Balance: Implement processes that enhance skills and contribute to project value WITHOUT losing the essence of Agile
+
+**Practical Application:**
+When team members report they cannot meet a deadline due to health or personal issues, prioritize their well-being over strict adherence to the timeline. However, still maintain necessary documentation and processes for continuity.
+
+**Key Takeaway**: Enable people to perform at their best by supporting their well-being, while maintaining essential processes that create accountability and knowledge preservation.
+
+---
+
+### Q3: What is your day-to-day responsibility as a Scrum Master?
+
+**Answer:**
+
+**At Team Level:**
+- Connect with team members and identify impediments
+- Guide the team on Scrum and Agile practices
+- Facilitate Scrum ceremonies:
+  - Sprint planning
+  - Daily standups
+  - Sprint reviews
+  - Retrospectives
+  - Backlog refinement sessions
+
+**At Program Level (SAFe Environment):**
+- Handle dependencies with other teams in Scrum of Scrums (SOS)
+- Sync with stakeholders and other Scrum Masters
+- Conduct capacity planning during PI planning
+- Represent the team as a facilitator in PI planning
+- Coach team members to align sprint goals with PI objectives
+- Conduct breakout sessions for feature decomposition
+- Track risks and dependencies across the program
+
+---
+
+## TEAM MANAGEMENT & DYNAMICS
+
+### Q4: How do you help your team with user stories? (Creation to Execution)
+
+**Answer:**
+
+**Process Overview:**
+
+1. **Requirements Clarity**
+   - Conduct working sessions between Business Analysts, Architects, and Developers
+   - Ensure developers understand business requirements and technical solutions
+   - All stakeholders should be comfortable with requirements before refinement
+
+2. **User Story Refinement**
+   - Apply the **INVEST principle**:
+     - **I**ndependent: No dependencies on other work
+     - **N**egotiable: Details can be discussed
+     - **V**aluable: Delivers clear value to users
+     - **E**stimable: Team can understand scope
+     - **S**mall: Can be completed in one sprint
+     - **T**estable: Has clear acceptance criteria
+
+3. **Story Creation Best Practices**
+   - Ensure no external dependencies or risks
+   - Features created by Business Analysts; user stories refined by developers
+   - Stories should be independently releasable and testable
+   - Estimation should include all testing phases (unit, staging, production)
+   - Developers should not separate "development story" and "testing story" in different sprints
+
+4. **Story Size**
+   - Should fit within one sprint
+   - If spanning multiple sprints, it's too large and needs breakdown
+   - Each story must be independently completable and releasable
+
+5. **Key Role as Scrum Master**
+   - Educate the team on proper story structure
+   - Ensure stories are independent, properly estimated, testable, and releasable
+   - Create accountability within the team
+
+---
+
+### Q5: How do you measure that your Sprint is successful?
+
+**Answer:**
+
+**Success Metrics Depend on Team Maturity:**
+
+**For New Teams (First 4-5 Sprints):**
+- Team members are comfortable and making progress
+- No need to measure velocity yet (they're still learning)
+- **Key metrics:**
+  - Happiness index (team satisfaction)
+  - Transparency and sync among all members
+  - Scope creep is well-managed
+  - Team is comfortable with deliverables
+
+**For Intermediate Teams (10-15 Sprints):**
+- Velocity should be constant or gradually increasing
+- Estimations are improving
+- They're committing to realistic workload (not under or over-committing)
+- **Key metrics:**
+  - Sprint goal achievement
+  - Velocity trends
+  - Negotiation and communication improvements
+
+**For Mature Agile Teams:**
+- All previous metrics apply, PLUS
+- **Key metrics:**
+  - Focus on increasing velocity
+  - Self-organization for internal issues
+  - Contributing to new requirements during Three Amigos sessions
+  - Handling scope creep professionally
+
+**Important Note:** Velocity should NOT be the only measure. A team completing 50 points vs. 45 points on unknown work differs greatly from work on known features. Success depends on what type of work the team is doing.
+
+---
+
+### Q6: How do you handle scope creep in your team?
+
+**Answer:**
+
+**Step-by-Step Approach:**
+
+1. **Assess the Situation**
+   - Determine if the work is critical (affects timelines, cost, or competition)
+   - If not critical and can wait, plan it for the next sprint
+
+2. **For Critical Mid-Sprint Work:**
+
+   **Before Taking It On:**
+   - Ask developers for effort estimates
+   - Inform upper management that other work will be impacted
+   - Ensure developers understand the requirements (conduct refinement)
+
+3. **Negotiate and Align**
+   - **Negotiation is KEY**: If taking in new work, something must come out
+   - Involve: Product Owner, Developers, Stakeholders, and Management
+   - Ensure everyone understands the trade-offs
+   - Maintain transparency about what will be pulled out of the sprint
+
+4. **For Non-Critical Work:**
+   - Give developers a few days to finish current work
+   - Then start the new urgent work
+   - This reduces context switching and stress
+
+5. **Golden Rule:**
+   - Developers should not be exhausted or pressurized
+   - Everyone should be in sync regarding sprint commitments
+   - Ensure transparency, negotiation, and collective decision-making
+
+**Key Principle:** Scope creep cannot be a regular occurrence. When it happens, manage it transparently with proper negotiation and trade-offs.
+
+---
+
+### Q7: How do you coach a team as a Scrum Master?
+
+**Answer:**
+
+**Two-Part Approach:**
+
+**Part 1: Diagnosis (Identify Gaps)**
+- Identify where the team is lacking:
+  - Knowledge gaps (estimation, Scrum, Agile)
+  - Competency gaps
+  - Technical gaps
+  - Process gaps (not updating Jira, etc.)
+  - Personal issues affecting performance
+
+**Part 2: Create & Execute a Coaching Plan**
+1. Create a roadmap based on identified gaps
+2. Plan coaching sessions (weekly 30-40 minute sessions if possible)
+3. Guide them to internal training resources or external certifications
+4. If external help is needed, involve stakeholders and explain the learning curve
+
+**Implement Scrum Values:**
+- Ensure team speaks openly in calls (transparency)
+- Team feels comfortable saying "no" to stories they don't understand
+- Team asks questions without hesitation (psychological safety)
+- Team feels heard and valued
+- Build trust so team members share "silly questions" (which are often the most important)
+
+**Implementation Timeline:**
+- Initially it's messy with many questions
+- Over time, team understands Scrum principles
+- Expectations should be set: "Gradual learning, not immediate mastery"
+
+---
+
+## AGILE CEREMONIES & EVENTS
+
+### Q8: Explain PI Planning (Program Increment Planning) - Complete Step-by-Step Process
+
+**Answer:**
+
+**Pre-PI Planning Phase (MESSCO Framework)**
+
+- **M** - Miro/Mural boards ready and team trained on how to use them
+- **E** - Epics aligned and clarified for the upcoming PI
+- **S** - Sprints created in both collaboration tool and Jira
+- **C** - Capacity planning completed (with buffer for emergencies)
+- **O** - Older epics that carry over reviewed for completion prioritization
+
+**During PI Planning:**
+
+1. **Kickoff (Business Team)**
+   - Business stakeholders present business functionalities expected for the quarter
+
+2. **Product & Architecture Discussion**
+   - Product Management breaks down business functionalities into features
+   - Architecture Team discusses technical requirements, infrastructure, and technology stack
+
+3. **Breakout Sessions (By Team)**
+   - Each team breaks features into smaller functionalities and user stories
+   - Provide rough estimations based on team's velocity
+   - **Note:** Final estimations happen during sprint planning
+
+4. **Risk & Dependency Management**
+   - Identify dependencies with other teams
+   - Use color coding: Red (not addressed), Green (addressed/low-priority), Amber (in-between)
+   - Use **ROAM technique** for risks:
+     - **Resolved**: Already being handled
+     - **Accepted**: Acknowledged but not worth mitigating (low impact/probability or high cost)
+     - **Owned**: Assigned to a team member to monitor
+     - **Mitigated/Negotiated**: 1-2% chance; requires regular monitoring with assigned owner and check-in date
+
+5. **Management Review**
+   - Present plan to leadership for feedback
+
+6. **Confidence Vote**
+   - Team members vote on confidence level in the plan
+   - If anyone votes below average, review plan again
+   - Ask why they lack confidence and what could improve it
+   - Conduct another management review if needed
+
+7. **Finalize PI Objectives**
+   - **70-80% Committed Objectives**: Agreed by team and stakeholders
+   - **Uncommitted Objectives**: Risk exists, but team will complete if time allows after committed objectives
+
+---
+
+### Q9: How do you calculate team capacity at team level and program level?
+
+**Answer:**
+
+**Basic Formula:**
+```
+Team Capacity = (Number of Team Members × Sprint Duration in Days × Working Hours per Day) 
+                - Planned Non-Working Time (Vacations, Holidays, Meetings)
+```
+
+**Example (10 Team Members, 10-day Sprint, 8 Working Hours):**
+- Base: 10 × 10 × 8 = 80 man-days
+- 2 people on vacation for 3 days = 6 days to subtract
+- 1 public holiday for all = 10 days to subtract
+- **Final Capacity: 80 - 6 - 10 = 64 man-days**
+
+**Converting to Hours:**
+- 64 man-days × 8 working hours = 512 actual hours
+
+**Applying Focus Factor (Optional):**
+- **Focus Factor** = True productive hours (accounting for ceremonies, ad-hoc requests, calls)
+- Typically 80% of actual capacity is usable (20% overhead)
+- **True Capacity: 512 × 80% = 409.6 productive hours**
+
+**Industry Variation:**
+- Some teams use 6 hours, 8 hours, 8.5, or 9 hours per day
+- Some deduct focus factor upfront; others calculate actual hours and apply focus factor later
+- **Principle remains the same**: Calculate available time and account for overhead
+
+**Program Level (SAFe):**
+- Aggregate individual team capacities
+- Account for team dependencies
+- Consider shared resources
+- Plan across multiple teams and PI cycles
+
+---
+
+### Q10: Why do we calculate velocity if we have capacity in PI planning?
+
+**Answer:**
+
+**Key Difference:**
+
+| Aspect | Capacity | Velocity |
+|--------|----------|----------|
+| **Definition** | Available hours/effort | Completed story points (output) |
+| **Focus** | INPUT | OUTPUT |
+| **Variability** | Changes sprint-to-sprint | Relatively stable (averaged) |
+| **Use** | Real hours available | Predictability for planning |
+
+**Why Both Are Needed:**
+
+1. **Capacity** gives actual available hours (hard numbers)
+2. **Velocity** converts capacity into predictability
+   - If 500 hours capacity → 45-50 story points delivered
+   - If 400 hours capacity → likely 36-40 story points
+
+**Predictability Method:**
+```
+Predicted Velocity = (New Capacity / Old Capacity) × Historical Velocity
+```
+
+**Example:**
+- Historical: 500 hours → 50 points
+- Next Sprint: 400 hours
+- Predicted: (400/500) × 50 = 40 points
+
+**Important Notes:**
+- NOT a hard rule; just for predictability estimation
+- Mature teams use this for planning, not pressure
+- **Anti-pattern**: Don't directly convert hours to story points (bad practice)
+- Velocity helps manage stakeholder expectations for releases
+
+---
+
+## SPRINT PLANNING & EXECUTION
+
+### Q11: How do you manage dependencies in a SAFe environment?
+
+**Answer:**
+
+**Three Key Approaches:**
+
+**1. Scrum of Scrums (SOS) & Dependencies Calls**
+- Regular meetings (weekly or per-need) with all teams
+- Use collaborative boards (Mural) to track:
+  - Team A depends on Team B, C, D, etc.
+  - Color code: Red, Green, Amber (as discussed in PI Planning section)
+
+**2. Link Dependencies in Jira**
+- Map story dependencies across teams
+- If Team A's story in Sprint 3 depends on Team B's story in Sprint 2:
+  - Link them in Jira
+  - Monitor alignment during SOS calls
+  - Follow up if dependencies are at risk
+
+**3. Attend All Sprint Demos**
+- Attend demos of other teams (not just your own)
+- Understand what they're building
+- Spot misalignments early
+- Example: If Team B finishes deliverables for Sprint 2 but you need them for Sprint 3, you'll know in advance
+- Can escalate or re-plan before impact occurs
+
+**Key Benefit:** Early visibility prevents surprises and allows proactive planning.
+
+---
+
+### Q12: What factors do you consider when estimating a user story?
+
+**Answer:**
+
+**Important Clarification:** 
+Scrum Master does NOT estimate; the **team** estimates.
+
+**Key Factors Teams Should Consider:**
+
+1. **Amount of Work**
+   - How big is the story?
+   - What is the scope of work required?
+
+2. **Complexity**
+   - How difficult is the story?
+   - Are there technical challenges?
+
+3. **Risk & Dependencies**
+   - What dependencies exist?
+   - What uncertainties could arise?
+   - Include buffer for potential issues
+
+4. **Complete Lifecycle**
+   - Unit testing (local environment)
+   - QA testing (staging environment)
+   - Feature flag testing (behind-the-scenes before production)
+   - Code review and linting resolution
+   - Deployment
+
+**Estimation Best Practices:**
+- Do NOT estimate in isolation; consider the complete picture
+- Account for all testing phases upfront
+- Do NOT separate "development stories" and "testing stories" across sprints
+- Ensure story size allows completion within one sprint
+- If estimation feels high, break the story down further
+
+---
+
+## METRICS & KPIS
+
+### Q13: What is Velocity and how do you use it without turning it into a performance metric?
+
+**Answer:**
+
+**Definition:**
+Sum of story points successfully completed by the team that meet the Definition of Done during a single sprint.
+
+**Proper Usage:**
+
+1. **Calculate Average Velocity**
+   - Take average over 3-4 sprints (4 is maximum; older data becomes stale)
+   - Formula: (Sum of story points last 3-4 sprints) ÷ (Number of sprints)
+
+2. **Use for Planning & Forecasting**
+   - Sprint planning: Set realistic commitments
+   - Release planning: Predict delivery timelines
+   - **Example**: "Based on average velocity of 40 points, this 200-point feature will take 5 sprints"
+
+3. **How NOT to Use It**
+   - ❌ Compare teams (Team A vs Team B)
+   - ❌ Evaluate individual performance
+   - ❌ Pressure team to increase velocity ("Add more story points")
+   - ❌ Show individual sprint velocities (creates unhealthy comparison)
+
+**Better Performance Metrics Instead:**
+
+1. **Predictability**: How often team meets commitments (target: 80-95%)
+2. **Churn Rate**: Scope additions/removals mid-sprint as percentage
+3. **Sprint Goal Achievement**: Percentage of stated sprint goals met
+4. **Definition of Done Compliance**: Quality of deliverables
+
+**Key Insight by Expert:**
+A good Scrum Master reads velocity trends. A great Scrum Master explains WHY the trends exist.
+
+**Watch for Trends:**
+- **Spike**: Could indicate known work, new team member, or story point inflation (anti-pattern)
+- **Plummet**: Could indicate new work complexity, team member absence, or unplanned dependencies
+- Neither is inherently good/bad; context matters
+
+---
+
+### Q14: What is Capacity and how is it different from Velocity?
+
+**Answer:**
+
+| Aspect | Capacity | Velocity |
+|--------|----------|----------|
+| **Definition** | Total available working time | Completed story points |
+| **Measurement** | Hours available | Story points delivered |
+| **When it changes** | Changes every sprint | Relatively stable (averaged) |
+| **Used for** | Determining team's effort input | Forecasting team's output |
+| **Primary purpose** | Sprint planning input | Release planning/forecasting |
+
+**Capacity Calculation:**
+```
+Capacity = (Team Size × Sprint Days × Hours/Day) - Planned Non-Working Time
+```
+
+**Velocity Calculation:**
+```
+Average Velocity = (Sum of Story Points last 3-4 sprints) ÷ Number of Sprints
+```
+
+**Relationship Using Focus Factor:**
+```
+Focus Factor = Average Velocity ÷ Average Capacity
+Predicted Velocity = New Capacity × Focus Factor
+```
+
+**Anti-Pattern - Resource Allocation Trap:**
+- Teams commit to capacity in hours rather than story points
+- This ignores historical performance and uncertainty
+- **Solution**: Use story points based on historical velocity
+
+**Devika's Expert Insight:**
+Watch focus factor trends:
+- **Dropping focus factor** = systemic problem (excessive unplanned work, context switching)
+- Use this as conversation starter for deeper investigation
+
+---
+
+### Q15: How do you calculate Sprint Predictability and what factors affect it?
+
+**Answer:**
+
+**Definition:**
+Rate at which the team predictably meets its sprint commitments.
+
+**Formula:**
+```
+Sprint Predictability = (Actual Points Completed ÷ Points Committed) × 100
+```
+
+**Healthy Range: 80-95%**
+- Below 80% = Team is overcommitting
+- Above 100% = Team is undercommitting (also not ideal)
+- Ideal: 80-85%
+
+**Important Insight:**
+If predictability is consistently 100% across multiple sprints, it's actually BAD—team is artificially creating perfect predictions by undercommitting. This is called "making artificially created perfect commitments."
+
+**Factors That Distort Predictability:**
+
+1. **Scope Creep**: Adding/removing items mid-sprint
+2. **Poor Estimation**: Inaccurate story sizing
+3. **Unforeseen Technical Issues**: Bugs, technical challenges discovered during work
+4. **Dependencies**: Blocked by other teams or external factors
+5. **Unplanned Work**: Production support, emergencies
+6. **Team Capacity Changes**: Sick leave, unexpected absences
+
+**When to Measure:**
+- Sprint review: Assess outcome
+- Sprint retrospective: Identify process improvements
+
+**Key Takeaway:** Use predictability to identify process improvements, not to blame the team.
+
+---
+
+### Q16: What is the difference between Lead Time and Cycle Time? How to shorten them?
+
+**Answer:**
+
+**Definitions:**
+
+| Metric | Definition | Formula |
+|--------|------------|---------|
+| **Lead Time** | Total time from customer request until delivery | Delivery Date - Request Date |
+| **Cycle Time** | Time from when team starts work until delivery | Delivery Date - Started Date |
+
+**Organizational Waiting Time:**
+```
+Organizational Waiting Time = Lead Time - Cycle Time
+(This is wasted time where nothing was done)
+```
+
+**When to Use:**
+- Sprint retrospective: Inspect and improve process efficiency
+- Sprint review: Communicate delivery speed to stakeholders
+
+**How to Shorten Both:**
+
+1. **Limit Work in Progress (WIP)**
+   - Improves focus and flow
+   - Reduces context switching
+
+2. **Break Down Work into Smaller Batches**
+   - Faster feedback loops
+   - Easier to manage and complete
+
+3. **Automate Testing & Deployment**
+   - Reduce manual handoffs
+   - Faster delivery pipeline
+
+4. **Streamline Handoffs**
+   - Reduce organizational waiting time
+   - Improve team collaboration
+
+5. **Track Cycle Time by Workflow Step**
+   - Example: Cycle time in "In Progress" vs "QA" vs "Done"
+   - Identify exact bottleneck location
+   - Target improvements to specific areas
+
+**Expert Tip:** Use cycle time per workflow step to pinpoint where exactly the constraint exists.
+
+---
+
+### Q17: What does a Cumulative Flow Diagram (CFD) show? How to interpret bottlenecks?
+
+**Answer:**
+
+**What It Shows:**
+A graph where:
+- **X-axis**: Time (sprints or weeks)
+- **Y-axis**: Count of work items
+- **Colored bands**: Different workflow statuses (To-Do, In Progress, QA, Done, etc.)
+
+**Three Key Metrics Visualized:**
+
+1. **Work in Progress (WIP)**: Vertical distance between bands
+2. **Cycle Time & Lead Time**: Horizontal distance between bands
+3. **Throughput**: Slope of the lines
+
+**How to Interpret Bottlenecks:**
+
+**Widening Vertical Gap in Any Band** = Bottleneck
+- Items entering faster than leaving the stage
+- Example: Wide gap in "QA" band = QA bottleneck
+
+**Anti-Patterns Visible in CFD:**
+
+1. **Work in Progress Overload**
+   - "To-Do" line much steeper than "Done" line
+   - Team starting too many things without finishing
+   - Leads to context switching and slow delivery
+   - **Remedy**: Enforce Work in Progress limits; freeze backlog top; enforce pull-only when capacity opens
+
+2. **Batching Anti-Pattern**
+   - "Done" line has step-like pattern (flat periods → sharp jumps)
+   - Work completed but not updated in status
+   - **Remedy**: Enforce strict Definition of Done; update board immediately; encourage continuous delivery
+
+3. **Scope Creep**
+   - Top of chart (total items) rises sharply during sprint
+   - **Remedy**: Protect sprint from mid-sprint additions; use prioritized lanes for chaotic environments
+
+**When to Use:**
+- Sprint retrospectives: Analyze flow and identify improvements
+- Daily scrum: Monitor daily flow
+- Sprint reviews: Communicate progress to stakeholders
+
+---
+
+### Q18: What is Throughput and how is it different from Velocity?
+
+**Answer:**
+
+| Aspect | Throughput | Velocity |
+|--------|-----------|----------|
+| **Definition** | Number of items completed | Story points completed |
+| **What it measures** | Count of work items | Size of work items |
+| **Type of measure** | Objective (no estimates needed) | Subjective (story point estimates) |
+| **Used in** | Kanban (flow-based) | Scrum (iteration-based) |
+| **Calculation** | Number of completed items ÷ Time period | Sum of story points completed |
+
+**When Throughput is Preferred:**
+- Teams practicing pure Kanban
+- Less prone to manipulation if vertical slicing is done correctly
+- Avoids estimation overhead
+- Favored by "No Estimation" movement
+
+**Key Requirement:** Throughput accuracy depends on **vertical slicing** of stories (not breaking by role: dev story, test story, etc.)
+
+**Throughput Benefits:**
+- More objective measure
+- Avoids estimation bias
+- Simpler to track
+- Enables probabilistic forecasting (Monte Carlo)
+
+**Expert Insight:** If stories are NOT vertically sliced, throughput loses reliability because you can artificially increase count by creating many small stories.
+
+---
+
+### Q19: What is Work Item Age and why does it matter?
+
+**Answer:**
+
+**Definition:**
+Time an item has been in the current workflow stage without being completed.
+
+**Formula:**
+```
+Work Item Age = Current Date - Date Item Entered Current Stage
+```
+
+**When to Use:**
+- Daily standups: Focus on completing oldest work first
+- Retrospectives: Identify flow problems
+
+**Why It Matters:**
+- Longer an item sits incomplete → higher chance of:
+  - Rework needed
+  - Technical debt accumulation
+  - Scope creep later
+  - Item becoming irrelevant
+  - Lost business value
+
+**Best Practice:**
+- If item exceeds 50% of average cycle time, bring it up in standup
+- Follow "First In, First Out" (oldest first) policy in highly optimized teams
+
+**Important Caveat:**
+- Do NOT use work item age as sole priority
+- Product Owner must still prioritize by business value
+- Only use "oldest first" when value is equal
+
+**Expert Tip:** "Never let work item age be the sole priority for the Product Owner. The team must ensure we're working on the highest business value items."
+
+---
+
+### Q20: How do you track quality of team's Definition of Done (DOD)?
+
+**Answer:**
+
+**Two Key Metrics:**
+
+**1. Defect Escape Rate (DER)**
+```
+DER = (Defects found post-sign-off) ÷ (Total defects found) × 100
+```
+
+- Data sources: QA managers, DevOps, incident management systems
+- Tracks reactive failures
+- Rising DER = DOD checklist is not catching bugs
+- **Insight**: If DER rises from 8% to 15%, your quality gates are false security
+
+**2. Manual Effort in DOD Completion (MEDC)**
+```
+MEDC = (Manual hours spent on DOD per story) ÷ (Story points delivered)
+```
+
+- Data sources: Team logs, QA logs, deployment verification records
+- Tracks proactive cost (labor)
+- High MEDC = Human labor is the bottleneck
+- If MEDC is high and DER is rising → manual checks are failing
+
+**How to Present to Leadership (with Automation Case):**
+
+**Winning Narrative:**
+- "Defect escape rate increased from 8% to 15% over 3 sprints"
+- "We're spending 20 hours monthly on manual regression testing"
+- "Automating testing will reduce DER AND free up 15,000 pounds in annual capacity"
+- **Calculate savings**: Annual team rate × Wasted manual hours
+
+This makes it a business case, not just a technical request.
+
+---
+
+### Q21: How do you measure Cost of Delay for blocked items?
+
+**Answer:**
+
+**Definition:**
+Financial or value impact of delayed delivery of blocked work items.
+
+**Two Ways to Measure Cost of Delay:**
+
+**1. Relative Value (Points-Based)**
+- Most common in Agile
+- Use story point value from Product Owner
+- Used for prioritization
+
+**2. Financial Value (Best)**
+- More impactful for executive reporting
+- Used for strategic investment decisions
+- Not all companies allow access, depends on policies
+
+**Formula:**
+```
+Cost of Delay = (Business Value or Points) × (Blockage Duration in days/hours)
+```
+
+**Example:**
+- Item value: 100 points
+- Blocked for: 5 days
+- Cost of Delay: 100 × 5 = 500 point-days
+
+**Data Sources:**
+- Value: Product Owner
+- Blockage duration: Project management tools (Jira, Azure DevOps, etc.)
+
+**Why the Combination is Powerful:**
+
+- **Subjective value alone**: Leadership sees hypothetical loss, doesn't feel impact
+- **Time data alone**: Not quantified enough
+- **Value × Time**: Quantifiable penalty imposed by system architecture/dependencies
+
+**Use Cases:**
+- Present to leadership in immediate meetings
+- Justify deprioritizing new work in favor of removing blockages
+- Advocate for removing systemic constraints
+
+**Expert Insight:** Always pair subjective value assessment with objective time data for maximum impact.
+
+---
+
+### Q22: Team meets sprint goals but has 75% predictability. How to address without blame?
+
+**Answer:**
+
+**Step 1: Don't Assume—Use Data-Driven Approach**
+
+Before assuming overcommitment, examine whether unstable inputs (scope creep) are sabotaging commitments.
+
+**Step 2: Calculate Scope Change Index (SCI)**
+
+```
+SCI = (Unplanned points added) ÷ (Original committed points)
+```
+
+- Data sources: Jira (tickets added/removed after sprint planning)
+- Threshold: Healthy SCI < 5%
+
+**Step 3: Present Neutral Data in Retrospective**
+
+"Our commitment reliability was 75%, meaning we finished 3 out of every 4 stories. Let's understand where the missing 25% went."
+
+**Step 4: Address Based on SCI**
+
+**If SCI is Low (<5%):**
+- "Great job protecting sprint boundaries!"
+- Issue is **internal**: estimation or hidden work
+- **Coaching question**: "What internal or hidden work consumed that X% capacity we didn't budget for?"
+- Focus on estimation accuracy and capacity planning
+
+**If SCI is High (>5%):**
+- Issue is **external**: scope creep
+- **Coaching question**: "How do we protect our sprint commitments? What mechanisms can we put in place to ensure unplanned work is prioritized by PO?"
+- Focus on sprint protection
+
+**Key Technique: Use Powerful Questions**
+- ❌ Don't ask "Why?" (defensive)
+- ❌ Don't use negative words like "failure"
+- ✅ Ask "What internal work consumed X% capacity?" (curious, non-blaming)
+- ✅ Focus on "what" instead of "why"
+- ✅ Explore without putting defenses up
+
+---
+
+## SCALING & SAFe FRAMEWORK
+
+### Q23: How to provide delivery date predictions during release planning?
+
+**Answer:**
+
+**Problem:** Product Owners want exact dates; provide probabilistic forecasts instead.
+
+**Solution: Burnup Chart + Monte Carlo Simulation**
+
+**Step 1: Gather Historical Data**
+- Collect team velocity over 8-12 sprints
+- Document variability in velocity
+
+**Step 2: Run Monte Carlo Analysis**
+- Simulate thousands of potential completion scenarios
+- Account for historical velocity variability
+- Generate probability ranges
+
+**Step 3: Present Probability Ranges**
+Instead of: "We'll be done on March 15"
+Present: 
+- "50% chance: Done by March 15"
+- "70% chance: Done by March 20"
+- "90% chance: Done by April 1"
+
+**Step 4: Communicate Risk Boundaries**
+- Explain confidence levels
+- Discuss what happens at outer bounds
+- Show stakeholders the risk/confidence trade-off
+
+**Benefits:**
+- More realistic forecasting
+- Transparent risk communication
+- Better stakeholder expectations
+
+---
+
+### Q24: What is the cost of 30% unplanned work in the sprint?
+
+**Answer:**
+
+**Single Metric to Calculate: Monthly Opportunity Cost**
+
+```
+Monthly Opportunity Cost = (Total Feature Value per Month) × (Unplanned Work Ratio)
+```
+
+**Example:**
+- Feature value: 100K per month
+- Unplanned work: 30%
+- Cost: 100K × 30% = 30K monthly loss
+
+**Data Sources:**
+- Tag all work as planned/unplanned (via story points)
+- Team's fully burdened cost (from HR/Finance)
+- Feature value from Product Owner
+
+**Converting to Annual Impact:**
+- Monthly: 30K
+- Annual: 30K × 12 = 360K
+
+**Organizational Change Recommendation:**
+
+**Capacity Allocation:**
+- Dedicate 20% of sprint for handling interruptions/support
+- Remaining 80% for planned work
+
+**Rule:**
+- Any unplanned work exceeding 20% support buffer must trigger **management-level root cause analysis**
+- Compel upstream teams to invest in stability
+
+**Result:** With 30% unplanned work, you're losing significant opportunity value and should address systemic issues.
+
+---
+
+## AI IN SCRUM MASTERY
+
+### Q25: How is AI changing the responsibilities of Scrum Masters?
+
+**Answer:**
+
+**Key Changes:**
+
+AI is **streamlining routine tasks**, freeing Scrum Masters to focus on coaching and team dynamics.
+
+**Tasks AI Now Handles:**
+- Tracking sprint progress automatically
+- Generating reports
+- Monitoring team health indicators
+- Flagging overdue tasks and sprint risks
+
+**Tools Available:**
+- Jira AI Insights: Flags overdue tasks, sprint risks
+- Azure DevOps Analytics: Automated insights
+- Microsoft Viva Insights: Team communication analysis
+- Slack AI: Channel intelligence
+
+**Result:** Scrum Masters shift from manual tracking to strategic coaching.
+
+---
+
+### Q26: What specific AI capabilities are most valuable for Scrum Masters?
+
+**Answer:**
+
+**1. Predictive Analytics**
+- Sprint forecasting
+- Backlog spillover risk prediction
+- Risk area identification
+- Tools: Jira Insights, Azure DevOps Analytics
+
+**2. Natural Language Processing (NLP)**
+- Analyze team communications (chat, meetings)
+- Detect team morale trends
+- Gauge team sentiment
+- Tools: Microsoft Viva Insights, Slack Copilot with Teams
+
+**3. Automated Reporting & Summarization**
+- Generate charts and reports automatically
+- Create meeting summaries
+- Present findings to stakeholders
+- Tools: Jira, Azure Boards, Copilot integration
+
+**4. Intelligent Backlog Management**
+- Prioritize based on customer feedback
+- Use historical velocity for smart prioritization
+- Optimize backlog automatically
+- Tools: AI-powered Jira
+
+**5. Risk Detection & Recommendations**
+- Analyze blockers and history
+- Suggest improvements
+- Integrate with Power BI and Azure DevOps
+- Tools: Power BI AI, Azure DevOps Boards, Pluralsite Flow
+
+**6. Retrospective Automation (Most Powerful)**
+- Analyze retrospective items
+- Identify recurring patterns and themes
+- Track action items across multiple retros
+- Suggest improvements based on team data
+- Sentiment analysis of team discussions
+- Tools: Parabol (integrated with Jira), Team Retro
+
+**Expert Use Case:** 
+AI analyzes daily standup time and finds team consistently overshoots 15-minute timeframe. This pattern can be raised in retrospective for discussion and improvement.
+
+---
+
+### Q27: How to use AI to improve team collaboration in distributed teams?
+
+**Answer:**
+
+**The Challenge:**
+Distributed teams across geographies and time zones face:
+- Communication gaps
+- Uneven participation
+- Disengagement
+- Hidden conflicts
+
+**AI Solutions:**
+
+**1. Analyze Communication Patterns**
+- Detect communication gaps
+- Identify disengaged members
+- Flag collaboration bottlenecks
+- Tools: Viva Insights, Slack AI, Team Mood
+
+**2. Specific Insights AI Can Provide:**
+- "Team response latency increased from 40 minutes to 3 hours this sprint"
+- "Only 2 people initiated 75% of technical discussions"
+- "Repeated questions about API integration indicate team confusion"
+- "Key questions were asked but not answered"
+- "Person X was not engaged during meeting"
+
+**3. Actionable Interventions:**
+Based on insights, propose:
+- **Weekly sync**: "API update sharing meeting (10 min)"
+- **Knowledge pairing**: Pair junior developers with seniors on new features
+- **Shared knowledge**: Create FAQ board to reduce repetitive questions
+- **Engagement rotation**: Rotate facilitator role in standup to improve participation
+
+**4. Meeting Time Management**
+- Detect if standups are overshooting 15 minutes
+- Flag consistent time overruns
+- Suggest format changes to improve efficiency
+
+**5. Silos & Collaboration Issues**
+- Detect isolated team members
+- Identify forming silos
+- Understand collaboration patterns
+- Propose targeted actions
+
+**Result:** AI provides data-driven insights; Scrum Master acts on them with human judgment and coaching.
+
+---
+
+### Q28: How to use AI in sprint planning sessions?
+
+**Answer:**
+
+**AI-Enhanced Sprint Planning:**
+
+**1. Intelligent Backlog Prioritization**
+- AI suggests prioritization based on:
+  - Historical velocity
+  - Customer feedback
+  - Issue severity
+- Tools: Azure Boards, Jira with AI
+- Benefit: More informed prioritization decisions
+
+**2. Accurate Effort Estimation**
+- AI suggests capacity planning adjustments
+- Based on team availability and past throughput
+- Tools: Jira Advanced Roadmaps, Azure Board AI
+- Benefit: More realistic story point predictions
+
+**3. Risk Prediction & Sprint Forecasting**
+- Predict sprint completion probability
+- Flag risky items early
+- Analyze lead time and cycle time trends
+- Tools: Jira Insights, Azure DevOps Analytics
+- Benefit: Early risk identification
+
+**4. Automated Retrospective Insights**
+- Summarize feedback from previous retros
+- Detect blockers using NLP
+- Track action item completion
+- Tools: Parabol, Team Retro
+- Benefit: Data-driven retro discussions
+
+---
+
+### Q29: Can AI replace the Scrum Master role?
+
+**Answer:**
+
+**Short Answer: NO. AI will augment but never replace the Scrum Master.**
+
+**Why AI Cannot Replace Scrum Masters:**
+
+1. **Emotional Intelligence (EQ)**
+   - AI lacks human empathy
+   - Cannot understand cultural differences
+   - Cannot sense team energy or room dynamics
+   - Cannot build trust or create psychological safety
+
+2. **Human Connection**
+   - Coaching requires empathy
+   - Difficult conversations need emotional awareness
+   - Cultural sensitivity is uniquely human
+   - Lived experience cannot be replicated
+
+3. **Complex Interpersonal Skills**
+   - Conflict resolution
+   - Emotional awareness
+   - Intuition and sensing
+   - Collective ownership building
+
+4. **Practical Example:**
+   - AI can: Flag burnout risk using data
+   - Only Scrum Master can: Facilitate conversation to address team morale
+
+**What AI CAN Do:**
+- Handle data tracking and analysis
+- Automate repetitive admin tasks
+- Generate automated reports
+- Flag risks and patterns
+- Provide data-based insights
+
+**Future of Scrum Mastery:**
+
+Scrum Masters of 2026 will:
+- Use AI as a "team inside engine"
+- Spend more time on team health and coaching
+- Focus on conflict resolution
+- Navigate cultural differences
+- Invest in human leadership
+- Make data-driven decisions (powered by AI)
+- Become MORE strategic and valuable
+
+**Key Analogy:**
+"AI is a microscope; Scrum Master is the scientist."
+
+**Important Caveat:**
+- 30-40% of admin/tactical tasks can be automated
+- Core role (coaching, facilitation, leadership) remains irreplaceable
+- Future Scrum Masters MUST understand AI, but AI will not replace them
+
+---
+
+### Q30: How to incorporate AI insights for continuous improvement?
+
+**Answer:**
+
+**Continuous Improvement Framework:**
+
+**1. Analyze Team Metrics Automatically**
+- Track velocity trends
+- Monitor cycle time
+- Track lead times
+- Tools: Pluralsite Flow, Jira Insights
+
+**2. Identify Bottlenecks & Predict Risks**
+- Use historical data to predict spillover
+- Enable proactive planning
+- Mitigate risks before they impact
+- Example: "Sprint 3 shows risk of 40% backlog spillover"
+
+**3. Sentiment Analysis for Team Health**
+- Monitor communication tone
+- Spot disengagement trends
+- Understand team mood shifts
+- Tools: Viva Insights, Slack AI
+
+**4. Automate Retrospective Insights**
+- Tools: Parabol, Team Retro
+- Identify recurring issues
+- Track action items across sprints
+- Highlight systemic problems
+
+**Critical Principle:**
+✅ Use AI insights as STARTING POINT, NOT final decision
+✅ Always apply human judgment
+✅ Adapt suggestions to team context
+✅ Maintain team ownership
+
+**Anti-Pattern Example:**
+- ❌ AI says: "Implement 24-hour SLA for code reviews"
+- ✅ Instead ask team: "Would this help? Is it realistic for our context?"
+
+**Ethical Considerations When Using AI:**
+- Maintain data privacy (especially for retrospective data)
+- Be transparent about AI usage
+- Don't use AI to judge individuals punitively
+- Ensure psychological safety isn't compromised by surveillance
+- Reassure team that AI helps with workflow issues, not personal judgment
+
+---
+
+## ADVANCED SCENARIO-BASED QUESTIONS
+
+### Q31: Ashutosh's Real Interview Experience - Complete Day-to-Day
+
+**Question:** What do you do as a Scrum Master?
+
+**Answer Structure (Dividing into Two Parts):**
+
+**Part 1: Team-Level Responsibilities**
+- Connect with stakeholders and team members
+- Identify and remove impediments
+- Guide team on Scrum and Agile practices
+- Facilitate Scrum ceremonies:
+  - Sprint planning
+  - Daily standups
+  - Sprint reviews
+  - Retrospectives
+  - Backlog refinement sessions
+
+**Part 2: Program-Level Responsibilities (SAFe)**
+- Handle dependencies with other teams in Scrum of Scrums
+- Sync with stakeholders beyond the team
+- Conduct capacity planning in PI planning
+- Represent team in PI planning as facilitator
+- Coach team on aligning sprint goals with PI objectives
+- Conduct breakout sessions
+
+**Key Interview Tip:** 
+Mention both team and program level to show experience with scaling Agile frameworks.
+
+---
+
+### Q32: Shefali's Question: How does scope creep impact the team?
+
+**Answer:**
+
+**Definition:** Scope creep = new work entering mid-sprint, pulling team away from current commitments.
+
+**Impact on Team:**
+- Disrupts current work
+- Causes context switching
+- Reduces focus and flow
+- Stresses the team
+- Affects sprint goal achievement
+
+**How to Manage (Real-World Example):**
+
+**Scenario:** During active sprint, management requests urgent feature. What do you do?
+
+1. **Get estimates from developers** on the urgent work effort
+2. **Inform management** that existing work will be impacted
+3. **Ensure developers understand requirements** (conduct refinement)
+4. **Negotiate with PO, developers, and management** - What comes out of the sprint to make room?
+5. **Maintain transparency** - Everyone should know the trade-offs
+6. **Execute** - Pull out lower-priority items and bring in urgent work
+
+**Golden Rules:**
+- Scope creep cannot be regular; manage it when it happens
+- Negotiation is key - something must leave if something comes in
+- Everyone should be in sync about changes
+- Developers should not be exhausted or pressurized
+
+---
+
+### Q33: How to handle velocity fluctuations across sprints?
+
+**Answer:**
+
+**Real-World Case Study:**
+
+A Scrum Master noticed velocity patterns:
+- High velocity: When working on enhancements of existing features
+- Low velocity: When building entirely new features
+
+**Root Causes to Investigate:**
+
+1. **Type of Work**
+   - Enhancements: Team knows codebase → faster
+   - New features: Unknowns, spikes needed → slower
+   - This is NATURAL variation
+
+2. **New Team Members**
+   - Adding new person → velocity drops for 2-3 sprints
+   - Then normalizes
+   - Expected behavior
+
+3. **Leave Patterns**
+   - Sick leave: Reduces capacity and velocity
+   - Planned vacation: Factor in during planning
+
+4. **Work Pressure**
+   - Pressure situations: Team rushes, makes mistakes
+   - Can artificially inflate velocity short-term
+   - Unsustainable long-term
+
+5. **Process Improvements**
+   - New tools or processes: May temporary slow things
+   - Then improve efficiency
+
+**How to Address Velocity Fluctuations:**
+
+✅ **Identify patterns** - Is it work type, team composition, or process?
+✅ **Communicate with stakeholders** - Explain natural variations
+✅ **Adjust forecasts** - Account for work type and team capacity
+✅ **Don't panic** - Velocity variation is normal, not failure
+✅ **Investigate thoroughly** - Don't jump to "underperformance" conclusion
+
+**Expert Insight:**
+"We need to identify what's working for the team and what's not. When velocity fluctuates, don't blame the team; investigate the system."
+
+---
+
+### Q34: Churn Rate / Scope Change Impact on Sprint
+
+**Answer:**
+
+**Definition:** Churn Rate = How many items are added/removed mid-sprint relative to committed items.
+
+**Formula:**
+```
+Churn Rate = (Items added + Items removed) ÷ (Original committed items)
+```
+
+**Impact:**
+- High churn = unstable sprints
+- Makes velocity unreliable for forecasting
+- Creates team stress and context switching
+
+**Example:**
+- Committed: 50 story points
+- Added: 30 points
+- Removed: 20 points
+- Churn: (30+20)/50 = 100% (very high!)
+
+**How to Control:**
+- Protect sprint boundaries once started
+- Have PO prioritize items before sprint planning
+- Limit mid-sprint additions to true emergencies
+- Track churn as sprint metric
+
+---
+
+### Q35: User Story Dependency Management
+
+**Question:** A user story has dependencies. How do you handle it?
+
+**Answer:**
+
+**During Refinement/Sprint Planning:**
+
+1. **Identify dependencies early**
+   - Don't bring dependent stories into same sprint
+   - Example: If Story B depends on Story A completion, Story B belongs in next sprint minimum
+
+2. **Coordinate with dependent teams**
+   - In SAFe: Ensure dependencies surface during SOS
+   - Link stories in Jira
+   - Plan accordingly
+
+3. **If dependency must come mid-sprint:**
+   - Check status of blocker work
+   - Assess risk of delay
+   - Have contingency plan
+   - Keep team informed
+
+4. **Risk Management:**
+   - Document dependency clearly
+   - Communicate dates to dependent team
+   - Follow up proactively
+   - Watch Scrum of Scrums for updates
+
+**Best Practice:** Avoid dependencies within a sprint. Plan them across sprint boundaries.
+
+---
+
+### Q36: Handling a Low-Performing Team Member
+
+**Question:** How do you address performance issues without demoralizing the team?
+
+**Answer:**
+
+**Approach:**
+
+1. **Private 1-on-1 Conversation**
+   - Don't address in public or team settings
+   - Create safe space for discussion
+   - Ask questions: "How are you doing? What challenges are you facing?"
+
+2. **Diagnose the Root Cause**
+   - Is it knowledge gap?
+   - Estimation skills?
+   - Personal issues?
+   - Family problems?
+   - Health concerns?
+   - Overload or burnout?
+
+3. **Create Coaching Plan**
+   - Skill training sessions (30-40 min weekly)
+   - Point to internal resources or external courses
+   - Pair with senior team member if needed
+   - Set realistic expectations for improvement timeline
+
+4. **Support with Context**
+   - Inform stakeholders about coaching plan
+   - Explain: "Learning curve; gradual improvement expected"
+   - Give time to improve (not overnight expectations)
+
+5. **Follow Up**
+   - Check progress regularly
+   - Adjust plan as needed
+   - Celebrate small wins
+
+**Scrum Master Role:**
+Facilitate growth and improvement, not punish or judge. Create psychological safety for the team member to improve.
+
+---
+
+### Q37: Definition of Done that prevents defects
+
+**Answer:**
+
+**Problem:** Simple checklist DOD not catching quality issues.
+
+**Solution:** Add quality metrics to DOD validation.
+
+**Metrics to Track:**
+
+1. **Defect Escape Rate (DER)**
+   - Defects found post-delivery
+   - Rising DER = DOD inadequate
+   - Set target: <5% DER
+
+2. **Manual Effort in DOD (MEDC)**
+   - Hours spent on manual testing
+   - High manual effort = bottleneck
+   - Indicator for automation need
+
+3. **Definition of Done Compliance**
+   - Checklist completion rate
+   - Code review quality
+   - Test coverage
+   - Documentation completeness
+
+**How to Strengthen DOD:**
+- Add automated testing requirement
+- Mandate code review with specific criteria
+- Include security checks
+- Require documentation
+- Add performance testing for relevant items
+- Include accessibility testing
+
+**Implementation:**
+- Start with one area (e.g., automated tests)
+- Measure impact on defect rate
+- Add more criteria as team matures
+
+---
+
+## ADDITIONAL REAL INTERVIEW SCENARIOS
+
+### Q38: How would you handle a situation where management pressures the team to increase velocity?
+
+**Answer:**
+
+**Don't:**
+- ❌ Pressure team to artificially increase velocity
+- ❌ Inflate story points
+- ❌ Reduce quality to go faster
+
+**Do:**
+- ✅ Educate management on what velocity represents
+- ✅ Explain that velocity is outcome, not input
+- ✅ Show that artificial increases lead to low quality
+- ✅ Propose legitimate improvements:
+  - Remove impediments
+  - Reduce context switching
+  - Improve focus
+  - Invest in tools/infrastructure
+
+**Talking Points:**
+- "Velocity is outcome; we can't directly control it"
+- "Forcing higher velocity leads to technical debt and defects"
+- "Let's focus on removing blockers to naturally improve delivery"
+- "Quality and sustainability matter more than short-term numbers"
+
+---
+
+### Q39: How do you balance technical debt with feature delivery?
+
+**Answer:**
+
+**Approach:**
+
+1. **Make technical debt visible**
+   - Document it clearly
+   - Track in backlog as stories/epics
+   - Show impact on velocity
+
+2. **Allocate time for tech debt**
+   - Typical allocation: 20% of sprint capacity
+   - Non-negotiable for long-term health
+   - Rotate focus across sprints if needed
+
+3. **Prioritize strategically**
+   - Critical tech debt: Impacting delivery speed
+   - Medium: Causing pain but manageable
+   - Low: Nice to have
+
+4. **Present business case**
+   - Show: How tech debt slows future features
+   - Calculate: Cost of ignoring it
+   - Propose: Balanced allocation
+
+5. **Continuous Improvement**
+   - Design with tech debt prevention in mind
+   - Code reviews to catch debt early
+   - Refactoring as ongoing practice
+
+**Key Message:** "Taking time for technical debt now prevents bigger problems later."
+
+---
+
+### Q40: How do you ensure stakeholder communication?
+
+**Answer:**
+
+**Regular Communication Cadence:**
+
+1. **Sprint Review** (Every sprint)
+   - Show working increment
+   - Gather feedback
+   - Discuss what's next
+
+2. **Release Planning Meetings** (Per PI/Quarter)
+   - Communicate roadmap
+   - Discuss timeline and dependencies
+   - Build alignment
+
+3. **Executive Updates** (Monthly/Quarterly)
+   - Velocity trends
+   - Release forecast
+   - Risk and blockers
+   - Business value delivered
+
+4. **Ad-hoc Updates** (As needed)
+   - When risks emerge
+   - When scope changes
+   - When timeline shifts
+
+**Best Practices:**
+- Use metrics/data, not opinions
+- Be transparent about challenges
+- Present both good and bad news
+- Involve PO and team in communications
+- Frame updates around business value, not technical details
+
+---
+
+### Q41: How do you foster psychological safety in the team?
+
+**Answer:**
+
+**Psychological Safety = Trust to speak up without fear of punishment**
+
+**Actions:**
+
+1. **Model openness**
+   - Share your own mistakes
+   - Ask for help
+   - Admit when you don't know something
+
+2. **Listen without judgment**
+   - Acknowledge team concerns
+   - Don't dismiss ideas
+   - Ask clarifying questions
+
+3. **Protect the team**
+   - Shield team from excessive blame
+   - Be buffer between team and politics
+   - Stand up for team members
+
+4. **Celebrate speaking up**
+   - Commend team for raising issues
+   - "Silly questions" are often most important
+   - Create norm of curiosity, not judgment
+
+5. **Follow through**
+   - When team raises blocker, address it
+   - When team suggests improvement, consider it
+   - Show actions on feedback
+
+**In Retrospectives Specifically:**
+- Ensure retros are psychologically safe
+- No punishment for honest feedback
+- Focus on improvements, not blame
+- Team should feel comfortable being vulnerable
+
+---
+
+### Q42: How do you prepare team for organizational changes?
+
+**Answer:**
+
+**When Organization Changes (Tool migration, Process change, etc.):**
+
+1. **Over-communicate**
+   - Explain the why
+   - What's changing
+   - Timeline
+   - Impact on team
+
+2. **Involve team early**
+   - Get input on new tools/processes
+   - Let them shape implementation
+   - Creates buy-in
+
+3. **Provide training**
+   - Don't assume they know new tools
+   - Hands-on practice
+   - Q&A sessions
+
+4. **Allow transition period**
+   - Velocity may dip initially
+   - This is normal
+   - Reassure team and stakeholders
+   - Set realistic timeline
+
+5. **Gather feedback**
+   - How's the transition going?
+   - What's working? What's not?
+   - Adjust implementation based on feedback
+
+**Key:** Change management is part of Scrum Master role. Make it smooth and inclusive.
+
+---
+
+### Q43: Real example - Handling unexpected team member departure
+
+**Question:** A key developer suddenly leaves. How do you handle the impact?
+
+**Answer:**
+
+**Immediate Actions:**
+1. **Knowledge transfer**
+   - Capture what they know (documentation, recordings, 1-on-1s)
+   - Identify key projects they were on
+   - Create knowledge repository
+
+2. **Adjust sprint**
+   - Re-prioritize work
+   - Pull out dependent stories if needed
+   - Adjust velocity expectations for next sprints
+
+3. **Support remaining team**
+   - Acknowledge impact and challenge ahead
+   - Distribute workload fairly
+   - Watch for burnout
+   - Provide support/coaching
+
+4. **Plan for replacement**
+   - Expedite hiring if critical role
+   - Prepare onboarding process
+   - Pair new person with existing team
+   - Budget for ramp-up time
+
+5. **Communication**
+   - Update stakeholders on timeline impact
+   - Be transparent about challenges
+   - Provide realistic forecast for recovery
+
+**Lesson Learned (from story):** Documentation and processes help teams survive unexpected departures. People over process doesn't mean no processes—it means having processes that don't become burdens.
+
+---
+
+## PREPARATION TIPS FOR INTERVIEWS
+
+### Before the Interview
+
+1. **Understand fundamentals**
+   - Scrum framework and roles
+   - Agile manifesto and principles
+   - Servant leadership vs. command-and-control
+
+2. **Learn real examples**
+   - Prepare stories from your experience
+   - Discuss challenges you've overcome
+   - Talk about team improvements you've implemented
+
+3. **Know metrics**
+   - Velocity, capacity, predictability
+   - Lead time, cycle time
+   - Burndown and burn-up charts
+   - Cumulative flow diagrams
+
+4. **Practice SAFe concepts**
+   - If job requires: PI planning, Scrum of Scrums
+   - ART (Agile Release Train)
+   - Roadmap and dependencies
+   - Program increments
+
+5. **Stay current**
+   - AI in Agile (emerging important topic)
+   - Modern tools: Jira, Azure DevOps, Miro/Mural
+   - Distributed/remote team challenges
+
+### During the Interview
+
+1. **Clarify before answering**
+   - "Can you give me context about your team size and environment?"
+   - "Is this a Scrum, Kanban, or SAFe setup?"
+   - Shows thoughtfulness
+
+2. **Use STAR method for stories**
+   - **Situation**: Context
+   - **Task**: What you had to do
+   - **Action**: What you did
+   - **Result**: Outcome and learning
+
+3. **Balance theory with practice**
+   - Quote frameworks (Scrum guide, Agile manifesto)
+   - Give real examples
+   - Explain your approach, not just what worked
+
+4. **Ask clarifying questions**
+   - Shows you think critically
+   - "What does success look like for this role?"
+   - "Tell me about your Agile maturity level"
+
+5. **Be honest**
+   - If you don't know, say so and show willingness to learn
+   - Admit mistakes and what you learned
+   - Don't pretend experience you don't have
+
+### After the Interview
+
+1. **Send thoughtful thank you**
+   - Reference specific discussion points
+   - Reiterate interest
+   - Clarify any points you'd like to revisit
+
+2. **Follow up on timelines**
+   - "When do you expect to make a decision?"
+   - Follow up professionally if timeline passed
+
+---
+
+## KEY TAKEAWAYS
+
+### Core Principles
+1. **Scrum Master is a servant leader, not a manager**
+2. **Facilitate, don't command; coach, don't control**
+3. **Data-driven decisions; transparent communication**
+4. **People first, but processes matter for continuity**
+5. **Velocity is outcome, not input; don't try to force it**
+
+### Critical Skills
+1. **Coaching & Mentoring**: Help team improve, not judge
+2. **Facilitation**: Make meetings productive without commanding
+3. **Problem-Solving**: Remove impediments systematically
+4. **Communication**: Talk to everyone: team, PO, stakeholders, management
+5. **Data Literacy**: Understand metrics and trends
+
+### Common Mistakes to Avoid
+- Using velocity as performance metric
+- Blaming team for problems (dig for root cause)
+- Ignoring psychological safety
+- Not protecting sprint boundaries
+- Assuming everyone knows Agile
+- Focusing only on velocity, ignoring quality
+
+---
+
+## RESOURCES MENTIONED
+1. **Books:**
+   - Scrum Insights for Practitioners
+   - The Five Dysfunctions of a Team
+   - Start with Why
+   - The Scrum Field Guide
+
+2. **Tools:**
+   - Jira (with AI Insights)
+   - Azure DevOps
+   - Miro/Mural (collaboration)
+   - Viva Insights (team health)
+   - Slack AI
+   - Parabol (retrospectives)
+   - Power BI (analytics)
+
+3. **Certifications:**
+   - CSM (Certified Scrum Master)
+   - PSM (Professional Scrum Master)
+   - SAFe SM (SAFe Scrum Master)
+   - Advanced Scrum Master
+   - Agile Coach
+
+---
+
+## FINAL ADVICE
+
+**From Career Talk Community:**
+
+"If you really want to be a Scrum Master, preparation matters. There is plenty of opportunity in the market because 90-95% of companies have or are implementing Agile frameworks. Success comes from:
+
+1. Understanding the theory
+2. Applying it with real examples
+3. Continuously learning and improving
+4. Treating people as humans first, metrics as tools
+5. Building trust and psychological safety
+
+Good luck with your interviews!"
+
+---
+
+*Document compiled from CareersTalk Video Series - Expert interviews with Scrum Masters, Agile Coaches, and Project Managers who successfully passed interviews at top companies: Deloitte, Cognizant, TCS, LTI, Capgemini, Luxark (Xerox), and others.*
+
+*Last Updated: December 2025*
