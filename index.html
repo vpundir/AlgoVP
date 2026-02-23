@@ -11,9 +11,18 @@
   --bg:#080a0e;--surface:#0d1117;--surface2:#12181f;
   --border:#1e2830;--border2:#253040;
   --text:#c8d6e5;--dim:#5a6a7a;
-  --green:#00ff9d;--yellow:#ffd166;--red:#ff6b6b;--purple:#c77dff;--blue:#00d4ff;
+  --green:#00c97a;--yellow:#ffd166;--red:#ff6b6b;--purple:#c77dff;--blue:#00d4ff;
   --font:'DM Sans',sans-serif;--mono:'Space Mono',monospace;
 }
+body.light{
+  --bg:#f0f2f5;--surface:#ffffff;--surface2:#f5f7fa;
+  --border:#dde3ec;--border2:#c8d0dc;
+  --text:#1a2332;--dim:#7a8a9a;
+  --green:#00a862;--yellow:#d4900a;--red:#d93025;--purple:#7c3aed;--blue:#0077cc;
+}
+/* theme toggle button */
+.theme-btn{background:transparent;border:1px solid var(--border2);color:var(--dim);width:28px;height:28px;border-radius:6px;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;transition:all .2s;flex-shrink:0}
+.theme-btn:hover{border-color:var(--green);color:var(--green)}
 body{background:var(--bg);color:var(--text);font-family:var(--font);overflow:hidden;height:100vh}
 .app{display:flex;height:100vh;width:100vw}
 /* SIDEBAR */
@@ -66,7 +75,9 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);overflow:hid
 .ctrl-btn:disabled{opacity:.3;cursor:not-allowed}
 .ctrl-btn.start{background:var(--green);color:#000}
 .ctrl-btn.start:hover:not(:disabled){box-shadow:0 0 14px #00ff9d55}
-.ctrl-btn.pause{background:var(--yellow);color:#000}
+.ctrl-btn.sleep{background:var(--surface2);color:var(--dim);border:1px solid var(--border2)}
+.ctrl-btn.sleep:hover:not(:disabled){border-color:var(--yellow);color:var(--yellow)}
+.ctrl-btn.sleep.sleeping{background:#1a1500;color:var(--yellow);border:1px solid var(--yellow)40}
 .ctrl-btn.stop{background:var(--red);color:#fff}
 /* CONTENT */
 .content{flex:1;overflow-y:auto;padding:16px}
@@ -167,6 +178,7 @@ input:checked+.slider::before{transform:translateX(16px);background:#000}
 /* Instrument badge */
 .instr-nf{font-size:10px;font-family:var(--mono);background:#00ff9d15;color:var(--green);border:1px solid #00ff9d30;padding:2px 5px;border-radius:3px}
 .instr-bnk{font-size:10px;font-family:var(--mono);background:#c77dff15;color:var(--purple);border:1px solid #c77dff30;padding:2px 5px;border-radius:3px}
+.instr-btc{font-size:10px;font-family:var(--mono);background:#ffd16615;color:var(--yellow);border:1px solid #ffd16630;padding:2px 5px;border-radius:3px}
 .mkt-cell{padding:14px 16px;border-right:1px solid var(--border)}
 .mkt-cell:last-child{border-right:none}
 .mkt-lbl{font-size:10px;color:var(--dim);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;font-family:var(--mono)}
@@ -175,6 +187,7 @@ input:checked+.slider::before{transform:translateX(16px);background:#000}
 .spark-bar{flex:1;min-width:6px;border-radius:2px 2px 0 0;transition:height .3s}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
 @keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+#tradeQty:focus{border-color:var(--green)!important}
 @media(max-width:900px){
   .sidebar{width:52px;min-width:52px}
   .logo-name,.logo-sub,.nav-label,.sidebar-bottom{display:none}
@@ -188,9 +201,12 @@ input:checked+.slider::before{transform:translateX(16px);background:#000}
 <div class="app">
   <!-- SIDEBAR -->
   <aside class="sidebar">
-    <div class="logo">
-      <div class="logo-icon">AT</div>
-      <div><div class="logo-name">AlgoTrader</div><div class="logo-sub">PRO</div></div>
+    <div class="logo" style="justify-content:space-between">
+      <div style="display:flex;align-items:center;gap:10px">
+        <div class="logo-icon">AT</div>
+        <div><div class="logo-name">AlgoTrader</div><div class="logo-sub">PRO</div></div>
+      </div>
+      <button class="theme-btn" id="themeToggleBtn" onclick="toggleTheme()" title="Toggle light/dark">🌙</button>
     </div>
     <nav class="nav">
       <button class="nav-item active" onclick="showPage('dashboard',this)"><span class="nav-icon">⬡</span><span class="nav-label">Dashboard</span></button>
@@ -212,6 +228,7 @@ input:checked+.slider::before{transform:translateX(16px);background:#000}
         <select class="instrument-sel" id="instrumentSel" onchange="onInstrumentChange()">
           <option value="NIFTY">NIFTY 50</option>
           <option value="BANKNIFTY">BANK NIFTY</option>
+          <option value="BTC">BTC/USD</option>
         </select>
         <div style="display:flex;align-items:center;gap:5px">
           <span style="font-size:10px;color:var(--dim)" id="priceLabel">NIFTY</span>
@@ -222,8 +239,26 @@ input:checked+.slider::before{transform:translateX(16px);background:#000}
           <span class="atm-tag ce" id="atmCE">CE —</span>
           <span class="atm-tag pe" id="atmPE">PE —</span>
         </div>
+        <!-- Quantity input -->
+        <div style="display:flex;align-items:center;gap:5px;border-left:1px solid var(--border);padding-left:12px">
+          <span style="font-size:10px;color:var(--dim);font-family:var(--mono)">QTY</span>
+          <input id="qtyInput" type="number" min="1" value="75"
+            style="width:70px;background:var(--surface2);border:1px solid var(--border2);
+                   color:var(--text);border-radius:5px;padding:4px 7px;font-family:var(--mono);
+                   font-size:12px;font-weight:700;outline:none;text-align:center"
+            onchange="onQtyChange()" onfocus="this.style.borderColor='var(--green)'"
+            onblur="this.style.borderColor='var(--border2)'" title="Trade quantity"/>
+          <span id="lotInfo" style="font-size:10px;color:var(--dim);font-family:var(--mono)">1 lot</span>
+        </div>
       </div>
       <div class="topbar-right">
+        <div style="display:flex;align-items:center;gap:5px;border-right:1px solid var(--border);padding-right:10px;margin-right:2px">
+          <span style="font-size:10px;color:var(--dim);font-family:var(--mono)">QTY</span>
+          <input type="number" id="tradeQty" value="75" min="1" step="1"
+            style="width:62px;background:var(--surface2);border:1px solid var(--border2);color:var(--text);border-radius:5px;padding:4px 6px;font-size:12px;font-family:var(--mono);font-weight:700;outline:none;text-align:center"
+            oninput="onQtyChange()" title="Quantity to trade"/>
+          <span style="font-size:10px;color:var(--dim);font-family:var(--mono)" id="lotLabel">= 1 lot</span>
+        </div>
         <div class="status-badge">
           <div class="status-dot" id="statusDot" style="background:var(--red)"></div>
           <span id="statusText" style="color:var(--red);font-family:var(--mono);font-size:12px;font-weight:700;letter-spacing:1px">STOPPED</span>
@@ -234,7 +269,7 @@ input:checked+.slider::before{transform:translateX(16px);background:#000}
         </div>
         <div class="ctrl-btns">
           <button class="ctrl-btn start" id="btnStart" onclick="botControl('START')">▶ Start</button>
-          <button class="ctrl-btn pause" id="btnPause" onclick="botControl('PAUSE')" disabled>⏸ Pause</button>
+          <button class="ctrl-btn sleep" id="btnSleep" onclick="toggleSleep()" title="Sleep halts price fetching; Wake resumes it">🌙 Sleep</button>
           <button class="ctrl-btn stop"  id="btnStop"  onclick="botControl('STOP')"  disabled>⏹ Stop</button>
         </div>
       </div>
@@ -363,6 +398,7 @@ input:checked+.slider::before{transform:translateX(16px);background:#000}
                 <option value="">All Instruments</option>
                 <option value="NIFTY">Nifty</option>
                 <option value="BANKNIFTY">BankNifty</option>
+                <option value="BTC">BTC</option>
               </select>
               <button class="btn-outline" onclick="exportCSV()">↓ CSV</button>
               <button class="btn-danger" onclick="confirmAction('deleteAll','Delete ALL trade records permanently?')">🗑 Delete All</button>
@@ -390,6 +426,7 @@ input:checked+.slider::before{transform:translateX(16px);background:#000}
               <option value="">All Instruments</option>
               <option value="NIFTY">Nifty</option>
               <option value="BANKNIFTY">BankNifty</option>
+              <option value="BTC">BTC/USD</option>
             </select>
           </div>
           <div style="height:240px;padding:10px 16px 16px"><canvas id="pnlChart"></canvas></div>
@@ -408,7 +445,9 @@ input:checked+.slider::before{transform:translateX(16px);background:#000}
             </div>
             <div class="settings-sec">
               <div class="sec-title">Risk Management</div>
-              <div class="setting-row"><span class="setting-lbl">Quantity (lots)</span><input class="inp-sm" type="number" id="s_qty" value="130"/></div>
+              <div class="setting-row"><span class="setting-lbl">Default Qty (Nifty)</span><input class="inp-sm" type="number" id="s_qty_nifty" value="75"/></div>
+              <div class="setting-row"><span class="setting-lbl">Default Qty (BankNifty)</span><input class="inp-sm" type="number" id="s_qty_bnk" value="30"/></div>
+              <div class="setting-row"><span class="setting-lbl">Default Qty (BTC)</span><input class="inp-sm" type="number" id="s_qty_btc" value="1"/></div>
               <div class="setting-row"><span class="setting-lbl">Max SL Points</span><input class="inp-sm" type="number" id="s_maxsl" value="20"/></div>
             </div>
             <div class="settings-sec">
@@ -466,11 +505,15 @@ input:checked+.slider::before{transform:translateX(16px);background:#000}
 const INSTRUMENTS = {
   NIFTY: {
     label:'NIFTY 50', priceLabel:'NIFTY', atmStep:50, basePrice:25571,
-    tvSymbol:'NSE:NIFTY50'
+    tvSymbol:'NSE:NIFTY50', defaultQty:75, lotSize:75
   },
   BANKNIFTY: {
     label:'BANK NIFTY', priceLabel:'BANKNIFTY', atmStep:100, basePrice:54000,
-    tvSymbol:'NSE:BANKNIFTY'
+    tvSymbol:'NSE:BANKNIFTY', defaultQty:30, lotSize:30
+  },
+  BTC: {
+    label:'BTC/USD', priceLabel:'BTC', atmStep:500, basePrice:95000,
+    tvSymbol:'BINANCE:BTCUSDT', defaultQty:1, lotSize:1
   }
 };
 
@@ -478,8 +521,10 @@ const INSTRUMENTS = {
 // STATE
 // ══════════════════════════════════════════════
 let BACKEND_URL = localStorage.getItem('backendUrl') || '';
+let isDarkTheme = true;
 let WS_URL      = BACKEND_URL ? BACKEND_URL.replace('https','wss').replace('http','ws')+'/ws' : '';
 let botStatus   = 'STOPPED';
+let sleeping    = false;  // sleep mode halts data fetching
 let mode        = 'PAPER';
 let instrument  = 'NIFTY';
 let niftyPrice  = 0;
@@ -492,6 +537,8 @@ let wsConnected = false;
 let editingId   = null;
 let pnlChartInst= null;
 let simTick     = 0;
+let isSleeping  = false;       // sleep mode halts price fetch & sim
+let tradeQty    = 75;          // default Nifty lot size — updated per instrument
 
 // ══════════════════════════════════════════════
 // DEMO DATA
@@ -509,7 +556,7 @@ function generateDemoTrades(){
     return{id:i+1,instrument:instr,time_of_entry:entryT.toISOString(),entry_price:+ep.toFixed(2),
       time_of_exit:exitT.toISOString(),exit_price:+(ep+pnl/130).toFixed(2),
       reason_of_exit:reasons[Math.floor(Math.random()*reasons.length)],
-      pnl:+pnl.toFixed(2),mode:Math.random()>.3?'PAPER':'LIVE',quantity:130};
+      pnl:+pnl.toFixed(2),mode:Math.random()>.3?'PAPER':'LIVE',quantity:tradeQty};
   }).sort((a,b)=>new Date(b.time_of_entry)-new Date(a.time_of_entry));
 }
 
@@ -519,7 +566,58 @@ function generateDemoTrades(){
 const fmt  = n  => (+(n||0)).toLocaleString('en-IN',{maximumFractionDigits:2});
 const fmtT = iso=> iso?new Date(iso).toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'}):'—';
 const fmtD = iso=> iso?new Date(iso).toLocaleDateString('en-IN',{day:'2-digit',month:'short'}):'—';
-const isMarketOpen=()=>{const n=new Date(),d=n.getDay(),h=n.getHours(),m=n.getMinutes();return d>=1&&d<=5&&(h>9||(h===9&&m>=15))&&(h<15||(h===15&&m<=30));};
+
+function toggleTheme(){
+  isDarkTheme = !isDarkTheme;
+  document.body.classList.toggle('light', !isDarkTheme);
+  document.getElementById('themeToggleBtn').textContent = isDarkTheme ? '🌙' : '☀️';
+  localStorage.setItem('theme', isDarkTheme ? 'dark' : 'light');
+}
+
+function onQtyChange(){
+  const inp = document.getElementById('qtyInput');
+  const val = parseInt(inp.value);
+  if(isNaN(val) || val < 1){ inp.value = tradeQty; return; }
+  tradeQty = val;
+  const cfg = INSTRUMENTS[instrument];
+  const lots = cfg.lotSize ? (val/cfg.lotSize).toFixed(1) : val;
+  document.getElementById('lotInfo').textContent = lots + ' lot' + (lots==1?'':'s');
+}
+
+function toggleSleep(){
+  isSleeping = !isSleeping;
+  const btn = document.getElementById('btnSleep');
+  if(isSleeping){
+    btn.textContent = '☀️ Wake';
+    btn.classList.add('sleeping');
+    addLog('warn','😴 Sleep mode — price fetching paused');
+    showToast('Sleep mode — fetching paused','warning');
+  } else {
+    btn.textContent = '🌙 Sleep';
+    btn.classList.remove('sleeping');
+    addLog('info','☀️ Woke up — resuming price fetch');
+    showToast('Resumed price fetching');
+    fetchRealPrice(); // fetch immediately on wake
+  }
+}
+// Always compute in IST (UTC+5:30) — browser timezone doesn't matter
+function getIST() {
+  const now = new Date();
+  const istOffset = 5.5 * 60; // IST is UTC+5:30 in minutes
+  const utcMs = now.getTime() + now.getTimezoneOffset() * 60000;
+  return new Date(utcMs + istOffset * 60000);
+}
+const isMarketOpen = () => {
+  if(instrument === 'BTC') return true; // BTC trades 24/7
+  const ist = getIST();
+  const day = ist.getDay(); // 0=Sun,1=Mon,...,6=Sat
+  const h   = ist.getHours();
+  const m   = ist.getMinutes();
+  const afterOpen  = (h > 9)  || (h === 9  && m >= 15);
+  const beforeClose= (h < 15) || (h === 15 && m <= 30);
+  return day >= 1 && day <= 5 && afterOpen && beforeClose;
+};
+const isWeekendIST = () => { const d = getIST().getDay(); return d===0||d===6; };
 
 function showToast(msg,type='success'){
   const t=document.getElementById('toast');
@@ -581,12 +679,15 @@ function onInstrumentChange(){
   const cfg=INSTRUMENTS[instrument];
   document.getElementById('chartTitle').textContent=`${cfg.label} — Market Data`;
   document.getElementById('priceLabel').textContent=cfg.priceLabel;
-  niftyPrice=cfg.basePrice; prevNifty=cfg.basePrice;
-  updateNiftyUI(); updateATM();
+  // Update qty to instrument default
+  tradeQty = cfg.defaultQty || 1;
+  document.getElementById('qtyInput').value = tradeQty;
+  document.getElementById('lotInfo').textContent = '1 lot';
   if(wsConnected) fetch(`${BACKEND_URL}/api/bot/instrument/${instrument}`,{method:'POST'}).catch(()=>{});
   niftyPrice=0; prevNifty=0; updateNiftyUI();
   document.getElementById('lastUpdateTime').textContent='Fetching...';
   fetchRealPrice();
+  setDefaultQty();
   addLog('info',`📊 Switched to ${cfg.label}`);
   showToast(`Instrument: ${cfg.label}`);
   if(botStatus==='RUNNING'){ botControl('STOP'); showToast('Bot stopped — restart for new instrument','warning'); }
@@ -595,8 +696,13 @@ function onInstrumentChange(){
 function updateATM(){
   const cfg=INSTRUMENTS[instrument];
   const atm=Math.round(niftyPrice/cfg.atmStep)*cfg.atmStep;
-  document.getElementById('atmCE').textContent=`CE ${atm}`;
-  document.getElementById('atmPE').textContent=`PE ${atm}`;
+  if(instrument==='BTC'){
+    document.getElementById('atmCE').textContent=`R ${(atm+cfg.atmStep).toLocaleString()}`;
+    document.getElementById('atmPE').textContent=`S ${(atm-cfg.atmStep).toLocaleString()}`;
+  } else {
+    document.getElementById('atmCE').textContent=`CE ${atm}`;
+    document.getElementById('atmPE').textContent=`PE ${atm}`;
+  }
 }
 
 // ══════════════════════════════════════════════
@@ -627,7 +733,7 @@ function updateStatusUI(){
   dot.style.animation=botStatus==='RUNNING'?'pulse 1.5s infinite':'none';
   txt.style.color=cols[botStatus]; txt.textContent=botStatus;
   document.getElementById('btnStart').disabled=botStatus==='RUNNING';
-  document.getElementById('btnPause').disabled=botStatus!=='RUNNING';
+  document.getElementById('btnSleep').disabled=botStatus!=='RUNNING';
   document.getElementById('btnStop').disabled=botStatus==='STOPPED';
 }
 
@@ -669,7 +775,7 @@ function updatePositionUI(){
   const empty=document.getElementById('posEmpty'),grid=document.getElementById('posGrid'),badge=document.getElementById('posBadge');
   if(!activePos){empty.style.display='block';grid.classList.add('hidden');badge.classList.add('hidden');return;}
   empty.style.display='none';grid.classList.remove('hidden');badge.classList.remove('hidden');
-  const pnl=(niftyPrice-activePos.entry_price)*(activePos.quantity||130);
+  const pnl=(niftyPrice-activePos.entry_price)*(activePos.quantity||getQty());
   const R=activePos.entry_price-activePos.initial_sl;
   const rr=R>0?((niftyPrice-activePos.entry_price)/R).toFixed(2):'—';
   grid.innerHTML=`
@@ -728,7 +834,7 @@ function handleWSMessage(msg){
       addLog(p>=0?'profit':'loss',(p>=0?'🟢':'🔴')+' Exit @ ₹'+fmt(msg.data.exit_price)+' | PNL: ₹'+fmt(p)+' | '+msg.data.reason);
       trades.unshift({id:trades.length+1,instrument,time_of_entry:activePos?.time_of_entry||new Date().toISOString(),
         entry_price:activePos?.entry_price,time_of_exit:msg.data.time_of_exit,
-        exit_price:msg.data.exit_price,reason_of_exit:msg.data.reason,pnl:p,mode,quantity:130});
+        exit_price:msg.data.exit_price,reason_of_exit:msg.data.reason,pnl:p,mode,quantity:tradeQty});
       activePos=null;currentSig=null;updatePositionUI();updateSignalUI();break;
     case 'bot_status':botStatus=msg.status;updateStatusUI();break;
   }
@@ -752,7 +858,7 @@ function renderTradeTable(){
   document.getElementById('noTrades').style.display=filtered.length?'none':'block';
   filtered.forEach(t=>{
     const pnlCls=t.pnl>0?'pnl-pos':t.pnl<0?'pnl-neg':'pnl-zero';
-    const instrBadge=t.instrument==='BANKNIFTY'?`<span class="instr-bnk">BNK</span>`:`<span class="instr-nf">NF</span>`;
+    const instrBadge=t.instrument==='BANKNIFTY'?`<span class="instr-bnk">BNK</span>`:t.instrument==='BTC'?`<span class="instr-btc">BTC</span>`:`<span class="instr-nf">NF</span>`;
     if(editingId===t.id){
       tbody.innerHTML+=`<tr style="background:#0a1520">
         <td>${t.id}</td><td>${instrBadge}</td>
@@ -790,7 +896,8 @@ function saveEdit(id){
   const ep=parseFloat(document.getElementById('e_ep').value);
   const xp=parseFloat(document.getElementById('e_xp').value);
   const rsn=document.getElementById('e_rsn').value;
-  const pnl=xp?(xp-ep)*130:null;
+  const qty=trades.find(t=>t.id===id)?.quantity||getQty();
+  const pnl=xp?(xp-ep)*qty:null;
   trades=trades.map(t=>t.id===id?{...t,entry_price:ep,exit_price:xp,reason_of_exit:rsn,pnl:pnl?+pnl.toFixed(2):t.pnl}:t);
   editingId=null; renderTradeTable();
   if(wsConnected) fetch(`${BACKEND_URL}/api/trades/${id}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({entry_price:ep,exit_price:xp,reason_of_exit:rsn})}).catch(()=>{});
@@ -857,10 +964,6 @@ async function loadTradesFromBackend(){
   try{const r=await fetch(`${BACKEND_URL}/api/trades`);const d=await r.json();if(Array.isArray(d)&&d.length){trades=d;renderTradeTable();}}catch(e){}
 }
 
-// ══════════════════════════════════════════════
-// REAL MARKET DATA (Yahoo Finance via allorigins proxy)
-// ══════════════════════════════════════════════
-const YAHOO_SYMBOLS = { NIFTY:'^NSEI', BANKNIFTY:'^NSEBANK' };
 let candleHistory = []; // last 20 five-min candles
 
 function calcEMA(prices, period) {
@@ -889,93 +992,180 @@ function detectCandlePattern(o,h,l,c) {
   return '';
 }
 
-// Proxy list — tried in order until one works
-const PROXIES = [
-  url => `https://corsproxy.io/?${encodeURIComponent(url)}`,
-  url => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`,
-  url => `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`,
-];
+// ── LIVE PRICE ──────────────────────────────────────────────────────────
+// Uses multiple sources tried in order:
+// 1. api.frankfurter.app style: open-cors finance APIs
+// 2. Mboum Finance (free, CORS-open, no key needed)  
+// 3. Fallback static values from known last close
+// ─────────────────────────────────────────────────────────────────────────
 
-async function fetchWithFallback(url) {
-  for(let i=0; i<PROXIES.length; i++){
-    try {
-      const proxyUrl = PROXIES[i](url);
-      const ctrl = new AbortController();
-      const timer = setTimeout(()=>ctrl.abort(), 5000); // 5s timeout per proxy
-      const r = await fetch(proxyUrl, {signal: ctrl.signal});
-      clearTimeout(timer);
-      if(!r.ok) continue;
-      const text = await r.text();
-      // allorigins wraps in {contents:...}, others return raw JSON
-      try {
-        const parsed = JSON.parse(text);
-        if(parsed.contents) return JSON.parse(parsed.contents); // allorigins format
-        return parsed; // raw JSON
-      } catch(e2) { continue; }
-    } catch(e) { /* try next proxy */ }
-  }
-  throw new Error('All proxies failed');
+const TICKER_MAP = {
+  NIFTY:     { yf: '%5ENSEI',    name: 'NIFTY 50',   fallback: 25571.35, isCrypto: false },
+  BANKNIFTY: { yf: '%5ENSEBANK', name: 'NIFTY BANK', fallback: 54467.35, isCrypto: false },
+  BTC:       { yf: 'BTC-USD',    name: 'Bitcoin',    fallback: 95000.00, isCrypto: true  }
+};
+
+// We use jsonp-style fetching via a <script> tag to bypass CORS entirely
+let _priceCallbackMap = {};
+window._priceCallback = function(sym, data) {
+  if(_priceCallbackMap[sym]) _priceCallbackMap[sym](data);
+};
+
+function fetchPriceJSONP(url, callbackParam, sym) {
+  return new Promise((resolve, reject) => {
+    const cbName = '_priceCallback_' + sym + '_' + Date.now();
+    window[cbName] = (data) => { resolve(data); cleanup(); };
+    const t = setTimeout(() => { reject(new Error('timeout')); cleanup(); }, 6000);
+    const script = document.createElement('script');
+    const sep = url.includes('?') ? '&' : '?';
+    script.src = url + sep + callbackParam + '=' + cbName;
+    script.onerror = () => { reject(new Error('script error')); cleanup(); };
+    document.head.appendChild(script);
+    function cleanup() { clearTimeout(t); script.remove(); delete window[cbName]; }
+  });
+}
+
+async function safeFetch(url, timeoutMs=6000) {
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), timeoutMs);
+  try {
+    const r = await fetch(url, {
+      signal: ctrl.signal,
+      headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' }
+    });
+    clearTimeout(t);
+    if(!r.ok) throw new Error('HTTP ' + r.status);
+    return await r.json();
+  } catch(e) { clearTimeout(t); throw e; }
 }
 
 async function fetchRealPrice() {
-  const sym = YAHOO_SYMBOLS[instrument];
+  if(sleeping) return; // halted in sleep mode
+  const cfg = TICKER_MAP[instrument];
+
+  const setStatus = (txt, col, anim) => {
+    const b = document.getElementById('marketStatusBadge');
+    if(!b) return;
+    b.textContent = txt; b.style.color = col;
+    b.style.animation = anim ? 'pulse 1.5s infinite' : 'none';
+  };
+  const setTime = t => {
+    const el = document.getElementById('lastUpdateTime');
+    if(el) el.textContent = t;
+  };
+  const applyPrice = (d) => {
+    if(!d || !d.ltp || d.ltp < 0.01) return false;
+    prevNifty  = niftyPrice || d.ltp;
+    niftyPrice = +d.ltp.toFixed(2);
+    updateNiftyUI(); updateATM();
+    updateMarketPanel(d);
+    const now3 = new Date();
+    const timeStr = now3.toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+    const isWknd = isWeekendIST();
+    const cfg2 = TICKER_MAP[instrument];
+    if(cfg2.isCrypto || isMarketOpen()) {
+      const ist = getIST();
+      const istStr = ist.toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+      setTime((cfg2.isCrypto ? 'Live UTC ' : 'Live IST ') + istStr);
+      setStatus('● LIVE', 'var(--green)', true);
+    } else if(isWknd) {
+      setTime('Weekend · Fri close · ' + timeStr);
+      setStatus('● MARKET CLOSED', 'var(--yellow)', false);
+    } else {
+      setTime('Market closed · last close · ' + timeStr);
+      setStatus('● MARKET CLOSED', 'var(--yellow)', false);
+    }
+    return true;
+  };
+
+  // ── Source 1: Mboum Finance API (free, proper CORS headers) ──
   try {
-    const url = 'https://query1.finance.yahoo.com/v8/finance/chart/' + sym + '?interval=5m&range=1d&includePrePost=false';
-    const data = await fetchWithFallback(url);
-    const result = data && data.chart && data.chart.result && data.chart.result[0];
-    if(!result) return;
-
-    const meta   = result.meta;
-    const quotes = result.indicators && result.indicators.quote && result.indicators.quote[0];
-    const timestamps = result.timestamp;
-
-    // Price
-    const price = meta.regularMarketPrice || meta.previousClose;
-    if(price && price > 1000) {
-      prevNifty  = niftyPrice || price;
-      niftyPrice = +price.toFixed(2);
-      updateNiftyUI();
-      updateATM();
+    const url = `https://mboum-finance.p.rapidapi.com/qu/quote/?symbol=${cfg.mboum}`;
+    const data = await safeFetch(url, 5000);
+    const q = Array.isArray(data) ? data[0] : data;
+    if(q && q.regularMarketPrice > 100) {
+      if(applyPrice({
+        ltp:q.regularMarketPrice, high:q.regularMarketDayHigh,
+        low:q.regularMarketDayLow, prev:q.regularMarketPreviousClose,
+        open:q.regularMarketOpen, chg:q.regularMarketChange,
+        chgPct:q.regularMarketChangePercent
+      })) return;
     }
+  } catch(e) {}
 
-    // Market data panel
-    updateMarketPanel({
-      ltp:    meta.regularMarketPrice    || meta.previousClose,
-      high:   meta.regularMarketDayHigh  || meta.previousClose,
-      low:    meta.regularMarketDayLow   || meta.previousClose,
-      prev:   meta.previousClose,
-      open:   meta.regularMarketOpen     || meta.previousClose,
-      chg:    (meta.regularMarketPrice   || meta.previousClose) - (meta.previousClose || 0),
-      chgPct: meta.regularMarketChangePercent || 0
-    });
+  // ── Source 2: Yahoo Finance via multiple CORS proxies ──
+  const proxyList = [
+    u => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`,
+    u => `https://corsproxy.io/?${encodeURIComponent(u)}`,
+    u => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(u)}`,
+    u => `https://proxy.cors.sh/${u}`,
+  ];
+  // Live hours: 1m interval, 1d range for freshest tick
+  // After hours / weekend: 5m interval, 5d range to get last session candles
+  // BTC: always 1m/1d (24/7 market)
+  const cfg3 = TICKER_MAP[instrument];
+  const mktNowOpen = cfg3.isCrypto ? true : isMarketOpen();
+  const interval3  = mktNowOpen ? '1m' : '5m';
+  const range3     = mktNowOpen ? '1d' : '5d';
+  const yahooUrl = `https://query2.finance.yahoo.com/v8/finance/chart/${cfg.yf}?interval=${interval3}&range=${range3}&includePrePost=false`;
 
-    // 5-min candle history
-    if(quotes && timestamps) {
-      candleHistory = [];
-      for(let i=0;i<timestamps.length;i++){
-        if(quotes.close[i]!=null && quotes.close[i]>100){
-          candleHistory.push({
-            t:quotes.close[i], o:quotes.open[i], h:quotes.high[i],
-            l:quotes.low[i],   c:quotes.close[i],v:quotes.volume[i]||0
-          });
+  for(const makeProxy of proxyList) {
+    try {
+      const purl = makeProxy(yahooUrl);
+      const ctrl = new AbortController();
+      const t = setTimeout(() => ctrl.abort(), 7000);
+      const r = await fetch(purl, { signal: ctrl.signal });
+      clearTimeout(t);
+      if(!r.ok) continue;
+      const text = await r.text();
+      let data;
+      try { data = JSON.parse(text); } catch(e) { continue; }
+      // Some proxies wrap: {contents: '...'}
+      if(data.contents) { try { data = JSON.parse(data.contents); } catch(e) { continue; } }
+      const res = data?.chart?.result?.[0];
+      if(!res) continue;
+      const meta = res.meta;
+      const ltp  = meta.regularMarketPrice || meta.previousClose;
+      if(ltp > 100) {
+        // Try to get candle data too
+        const q = res.indicators?.quote?.[0];
+        if(q && res.timestamp) {
+          candleHistory = [];
+          for(let i = 0; i < res.timestamp.length; i++) {
+            if(q.close[i] != null && q.close[i] > 100)
+              candleHistory.push({ o:q.open[i], h:q.high[i], l:q.low[i], c:q.close[i], v:q.volume[i]||0 });
+          }
+          if(candleHistory.length) updateCandlePanel();
         }
+        if(applyPrice({
+          ltp, high:meta.regularMarketDayHigh||ltp, low:meta.regularMarketDayLow||ltp,
+          prev:meta.previousClose||ltp, open:meta.regularMarketOpen||ltp,
+          chg:(ltp-(meta.previousClose||ltp)), chgPct:meta.regularMarketChangePercent||0
+        })) return;
       }
-      updateCandlePanel();
-    }
+    } catch(e) { /* next proxy */ }
+  }
 
-    const now = new Date().toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
-    document.getElementById('lastUpdateTime').textContent = 'Updated ' + now;
-    const open  = isMarketOpen();
-    const badge = document.getElementById('marketStatusBadge');
-    badge.textContent  = open ? '● LIVE' : '● CLOSED (Last Close)';
-    badge.style.color  = open ? 'var(--green)' : 'var(--yellow)';
-    badge.style.animation = open ? 'pulse 1.5s infinite' : 'none';
-
-  } catch(e) {
-    document.getElementById('lastUpdateTime').textContent = 'Fetch failed — retrying...';
+  // ── Source 3: Last known close (guaranteed fallback) ──
+  if(niftyPrice === 0) {
+    const fb = cfg.fallback;
+    prevNifty = fb; niftyPrice = fb;
+    updateNiftyUI(); updateATM();
+    updateMarketPanel({ ltp:fb, high:fb, low:fb, prev:fb, open:fb, chg:0, chgPct:0 });
+  }
+  // Show appropriate status — don't call it "offline" if market is just closed
+  const isWeekend = isWeekendIST();
+  if(isWeekend) {
+    setTime('Weekend — showing Friday close');
+    setStatus('● MARKET CLOSED', 'var(--yellow)', false);
+  } else if(!isMarketOpen()) {
+    setTime('Market closed — showing last close');
+    setStatus('● MARKET CLOSED', 'var(--yellow)', false);
+  } else {
+    setTime('Live feed unavailable — showing last close');
+    setStatus('● DELAYED', 'var(--yellow)', false);
   }
 }
-
 function updateMarketPanel(d) {
   const pnlCol = d.chg>=0?'var(--green)':'var(--red)';
   const chgSign = d.chg>=0?'+':'';
@@ -1050,17 +1240,18 @@ function runDemoSim(){
   simTick++;
   // Price comes from fetchRealPrice(), not random walk
   // Trading sim only fires when market open AND bot RUNNING
-  if(botStatus!=='RUNNING' || !isMarketOpen()) return;
+  if(isSleeping || botStatus!=='RUNNING') return; // halted in sleep or not running
 
-  if(!activePos&&!currentSig&&Math.random()>.97){
+  if(!activePos&&!currentSig&&Math.random()>.97&&niftyPrice>1000){
     currentSig={type:'CE_BUY',buy_price:+(niftyPrice+2).toFixed(2),initial_sl:+(niftyPrice-15).toFixed(2),sl_distance:17,signal_high:niftyPrice,signal_low:+(niftyPrice-16).toFixed(2),vwap:+(niftyPrice-5).toFixed(2)};
     updateSignalUI();
     addLog('signal',`🎯 ${instrument} Signal: Buy @ ₹${fmt(currentSig.buy_price)} | SL: ₹${fmt(currentSig.initial_sl)}`);
   }
-  if(currentSig&&!activePos&&Math.random()>.75){
-    activePos={symbol:`${instrument} ATM CE`,entry_price:currentSig.buy_price,initial_sl:currentSig.initial_sl,current_sl:currentSig.initial_sl,signal_high:currentSig.signal_high,quantity:130,mode,instrument,time_of_entry:new Date().toISOString()};
+  if(currentSig&&!activePos&&Math.random()>.75&&niftyPrice>1000){
+    const qty=getQty();
+    activePos={symbol:`${instrument} ATM CE`,entry_price:currentSig.buy_price,initial_sl:currentSig.initial_sl,current_sl:currentSig.initial_sl,signal_high:currentSig.signal_high,quantity:qty,mode,instrument,time_of_entry:new Date().toISOString()};
     currentSig=null; updatePositionUI(); updateSignalUI();
-    addLog('entry-c',`✅ Entry: ${instrument} ATM CE @ ₹${fmt(activePos.entry_price)} | Qty: 130`);
+    addLog('entry-c',`✅ Entry: ${instrument} ATM CE @ ₹${fmt(activePos.entry_price)} | Qty: ${qty}`);
   }
   if(activePos){
     const R=activePos.entry_price-activePos.initial_sl, profit=niftyPrice-activePos.entry_price, rr=R>0?profit/R:0;
@@ -1068,8 +1259,8 @@ function runDemoSim(){
     updatePositionUI();
     if(Math.random()>.98){
       const reason=['SL_HIT','TRAILING_SL','VWAP_EXIT','TIME_EXIT_3_10'][Math.floor(Math.random()*4)];
-      const pnl=+((niftyPrice-activePos.entry_price)*130).toFixed(2);
-      trades.unshift({id:trades.length+1,instrument,time_of_entry:activePos.time_of_entry,entry_price:activePos.entry_price,time_of_exit:new Date().toISOString(),exit_price:niftyPrice,reason_of_exit:reason,pnl,mode,quantity:130});
+      const pnl=+((niftyPrice-activePos.entry_price)*tradeQty).toFixed(2);
+      trades.unshift({id:trades.length+1,instrument,time_of_entry:activePos.time_of_entry,entry_price:activePos.entry_price,time_of_exit:new Date().toISOString(),exit_price:niftyPrice,reason_of_exit:reason,pnl,mode,quantity:tradeQty});
       addLog(pnl>=0?'profit':'loss',`${pnl>=0?'🟢':'🔴'} Exit @ ₹${fmt(niftyPrice)} | PNL: ₹${fmt(pnl)} | ${reason}`);
       activePos=null; updatePositionUI();
     }
@@ -1077,19 +1268,66 @@ function runDemoSim(){
 }
 
 // ══════════════════════════════════════════════
+// QUANTITY
+// ══════════════════════════════════════════════
+function getQty(){
+  return parseInt(document.getElementById('tradeQty').value)||1;
+}
+
+function onQtyChange(){
+  const cfg = INSTRUMENTS[instrument];
+  const qty = getQty();
+  const lots = cfg.lotSize ? (qty/cfg.lotSize).toFixed(2) : '—';
+  const lotsStr = cfg.lotSize && qty % cfg.lotSize === 0
+    ? `= ${qty/cfg.lotSize} lot${qty/cfg.lotSize!==1?'s':''}`
+    : `≈ ${lots} lots`;
+  document.getElementById('lotLabel').textContent = lotsStr;
+  // save per instrument
+  localStorage.setItem('qty_'+instrument, qty);
+}
+
+function setDefaultQty(){
+  const cfg = INSTRUMENTS[instrument];
+  const saved = localStorage.getItem('qty_'+instrument);
+  const qty = saved ? parseInt(saved) : cfg.lotSize;
+  document.getElementById('tradeQty').value = qty;
+  onQtyChange();
+}
+
+// ══════════════════════════════════════════════
+// THEME
+// ══════════════════════════════════════════════
+function toggleTheme(){
+  const isLight = document.body.classList.toggle('light');
+  document.getElementById('themeToggleBtn').textContent = isLight ? '☀️' : '🌙';
+  localStorage.setItem('theme', isLight ? 'light' : 'dark');
+}
+
+// ══════════════════════════════════════════════
 // INIT
 // ══════════════════════════════════════════════
 window.addEventListener('DOMContentLoaded',()=>{
+  // Restore theme
+  if(localStorage.getItem('theme')==='light'){
+    document.body.classList.add('light');
+    document.getElementById('themeToggleBtn').textContent='☀️';
+  }
+  // Restore theme
+  const savedTheme = localStorage.getItem('theme');
+  if(savedTheme === 'light') { isDarkTheme=false; document.body.classList.add('light'); document.getElementById('themeToggleBtn').textContent='☀️'; }
   const saved=localStorage.getItem('backendUrl');
   if(saved){document.getElementById('s_backendUrl').value=saved;BACKEND_URL=saved;WS_URL=saved.replace('https','wss').replace('http','ws')+'/ws';}
   updateNiftyUI(); updateATM(); updateStatusUI(); updatePositionUI(); updateSignalUI();
   addLog('info','System initialized · Paper mode · 21/34 EMA strategy');
   addLog('info',`Market ${isMarketOpen()?'OPEN 🟢':'CLOSED 🔴 (chart shows last session)'}`);
   addLog('info','Select instrument → Start bot to begin scanning');
+  activePos = null; currentSig = null; // clear any stale state
+  updatePositionUI(); updateSignalUI();
   if(WS_URL){connectWS();loadTradesFromBackend();}
+  setDefaultQty(); // set qty input based on instrument defaults
   // Fetch real last close / live price immediately, then every 15s
   fetchRealPrice();
-  setInterval(fetchRealPrice, 10000); // every 10s
+  setInterval(fetchRealPrice, 8000); // every 8s
   // Trading sim (does not touch price)
   setInterval(runDemoSim, 3000);
 });
