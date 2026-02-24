@@ -252,13 +252,7 @@ input:checked+.slider::before{transform:translateX(16px);background:#000}
         </div>
       </div>
       <div class="topbar-right">
-        <div style="display:flex;align-items:center;gap:5px;border-right:1px solid var(--border);padding-right:10px;margin-right:2px">
-          <span style="font-size:10px;color:var(--dim);font-family:var(--mono)">QTY</span>
-          <input type="number" id="tradeQty" value="75" min="1" step="1"
-            style="width:62px;background:var(--surface2);border:1px solid var(--border2);color:var(--text);border-radius:5px;padding:4px 6px;font-size:12px;font-family:var(--mono);font-weight:700;outline:none;text-align:center"
-            oninput="onQtyChange()" title="Quantity to trade"/>
-          <span style="font-size:10px;color:var(--dim);font-family:var(--mono)" id="lotLabel">= 1 lot</span>
-        </div>
+
         <div class="status-badge">
           <div class="status-dot" id="statusDot" style="background:var(--red)"></div>
           <span id="statusText" style="color:var(--red);font-family:var(--mono);font-size:12px;font-weight:700;letter-spacing:1px">STOPPED</span>
@@ -580,8 +574,8 @@ function onQtyChange(){
   if(isNaN(val) || val < 1){ inp.value = tradeQty; return; }
   tradeQty = val;
   const cfg = INSTRUMENTS[instrument];
-  const lots = cfg.lotSize ? (val/cfg.lotSize).toFixed(1) : val;
-  document.getElementById('lotInfo').textContent = lots + ' lot' + (lots==1?'':'s');
+  const lots = cfg.lotSize ? (val / cfg.lotSize).toFixed(1).replace(/\.0$/,'') : val;
+  document.getElementById('lotInfo').textContent = lots + ' lot' + (lots == 1 ? '' : 's');
 }
 
 function toggleSleep(){
@@ -685,9 +679,12 @@ function onInstrumentChange(){
   document.getElementById('lotInfo').textContent = '1 lot';
   if(wsConnected) fetch(`${BACKEND_URL}/api/bot/instrument/${instrument}`,{method:'POST'}).catch(()=>{});
   niftyPrice=0; prevNifty=0; updateNiftyUI();
-  document.getElementById('lastUpdateTime').textContent='Fetching...';
-  fetchRealPrice();
-  setDefaultQty();
+  if(isSleeping){
+    document.getElementById('lastUpdateTime').textContent='Sleeping — wake to fetch';
+  } else {
+    document.getElementById('lastUpdateTime').textContent='Fetching...';
+    fetchRealPrice();
+  }
   addLog('info',`📊 Switched to ${cfg.label}`);
   showToast(`Instrument: ${cfg.label}`);
   if(botStatus==='RUNNING'){ botControl('STOP'); showToast('Bot stopped — restart for new instrument','warning'); }
@@ -710,19 +707,17 @@ function updateATM(){
 // ══════════════════════════════════════════════
 async function botControl(action){
   if(wsConnected){ try{await fetch(`${BACKEND_URL}/api/bot/${action.toLowerCase()}`,{method:'POST'});}catch(e){} }
-  botStatus=action==='START'?'RUNNING':action==='PAUSE'?'PAUSED':'STOPPED';
+  botStatus = action==='START' ? 'RUNNING' : action==='PAUSE' ? 'PAUSED' : 'STOPPED';
   updateStatusUI();
-  const msgs={START:`🚀 Bot started — ${INSTRUMENTS[instrument].label} · ${mode}`,PAUSE:'⏸ Bot paused',STOP:'⏹ Bot stopped'};
-  const types={START:'success',PAUSE:'warning',STOP:'error'};
-  // System msgs always show regardless of botStatus gate
-  const panel=document.getElementById('logsPanel');
-  const time=new Date().toLocaleTimeString('en-IN');
-  const uid='lg_sys_'+Date.now();
-  const row=document.createElement('div');row.className='log-row';row.id=uid;
-  row.innerHTML=`<span class="log-time">${time}</span><span class="log-info">${msgs[action]}</span><button class="log-del-btn" onclick="document.getElementById('${uid}').remove()">✕</button>`;
-  panel.appendChild(row); panel.scrollTop=panel.scrollHeight;
-  showToast(msgs[action],types[action]);
-  if(action==='STOP'){activePos=null;currentSig=null;updatePositionUI();updateSignalUI();}
+  const msgs = {
+    START: `🚀 Bot started — ${INSTRUMENTS[instrument].label} · ${mode} · Qty: ${tradeQty}`,
+    PAUSE: '⏸ Bot paused',
+    STOP:  '⏹ Bot stopped'
+  };
+  const types = { START:'success', PAUSE:'warning', STOP:'error' };
+  addLog('info', msgs[action]);
+  showToast(msgs[action], types[action]);
+  if(action==='STOP'){ activePos=null; currentSig=null; updatePositionUI(); updateSignalUI(); }
 }
 
 function updateStatusUI(){
@@ -733,8 +728,8 @@ function updateStatusUI(){
   dot.style.animation=botStatus==='RUNNING'?'pulse 1.5s infinite':'none';
   txt.style.color=cols[botStatus]; txt.textContent=botStatus;
   document.getElementById('btnStart').disabled=botStatus==='RUNNING';
-  document.getElementById('btnSleep').disabled=botStatus!=='RUNNING';
   document.getElementById('btnStop').disabled=botStatus==='STOPPED';
+  // Sleep is always enabled — controls price fetching independently of bot state
 }
 
 // ══════════════════════════════════════════════
@@ -1040,7 +1035,7 @@ async function safeFetch(url, timeoutMs=6000) {
 }
 
 async function fetchRealPrice() {
-  if(sleeping) return; // halted in sleep mode
+  if(isSleeping) return; // halted in sleep mode
   const cfg = TICKER_MAP[instrument];
 
   const setStatus = (txt, col, anim) => {
@@ -1270,28 +1265,17 @@ function runDemoSim(){
 // ══════════════════════════════════════════════
 // QUANTITY
 // ══════════════════════════════════════════════
-function getQty(){
-  return parseInt(document.getElementById('tradeQty').value)||1;
-}
+function getQty(){ return tradeQty; }
 
-function onQtyChange(){
-  const cfg = INSTRUMENTS[instrument];
-  const qty = getQty();
-  const lots = cfg.lotSize ? (qty/cfg.lotSize).toFixed(2) : '—';
-  const lotsStr = cfg.lotSize && qty % cfg.lotSize === 0
-    ? `= ${qty/cfg.lotSize} lot${qty/cfg.lotSize!==1?'s':''}`
-    : `≈ ${lots} lots`;
-  document.getElementById('lotLabel').textContent = lotsStr;
-  // save per instrument
-  localStorage.setItem('qty_'+instrument, qty);
-}
 
 function setDefaultQty(){
   const cfg = INSTRUMENTS[instrument];
   const saved = localStorage.getItem('qty_'+instrument);
-  const qty = saved ? parseInt(saved) : cfg.lotSize;
-  document.getElementById('tradeQty').value = qty;
-  onQtyChange();
+  const qty = saved ? parseInt(saved) : (cfg.defaultQty || cfg.lotSize || 1);
+  tradeQty = qty;
+  document.getElementById('qtyInput').value = qty;
+  const lots = cfg.lotSize ? (qty/cfg.lotSize).toFixed(1).replace(/\.0$/,'') : qty;
+  document.getElementById('lotInfo').textContent = lots + ' lot' + (lots==1?'':'s');
 }
 
 // ══════════════════════════════════════════════
@@ -1307,11 +1291,6 @@ function toggleTheme(){
 // INIT
 // ══════════════════════════════════════════════
 window.addEventListener('DOMContentLoaded',()=>{
-  // Restore theme
-  if(localStorage.getItem('theme')==='light'){
-    document.body.classList.add('light');
-    document.getElementById('themeToggleBtn').textContent='☀️';
-  }
   // Restore theme
   const savedTheme = localStorage.getItem('theme');
   if(savedTheme === 'light') { isDarkTheme=false; document.body.classList.add('light'); document.getElementById('themeToggleBtn').textContent='☀️'; }
