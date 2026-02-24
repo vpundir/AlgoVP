@@ -515,24 +515,24 @@ const INSTRUMENTS = {
 // STATE
 // ══════════════════════════════════════════════
 let BACKEND_URL = localStorage.getItem('backendUrl') || '';
-let isDarkTheme = true;
 let WS_URL      = BACKEND_URL ? BACKEND_URL.replace('https','wss').replace('http','ws')+'/ws' : '';
 let botStatus   = 'STOPPED';
-let sleeping    = false;  // sleep mode halts data fetching
+let isSleeping  = false;   // sleep/wake — halts all price fetching when true
 let mode        = 'PAPER';
 let instrument  = 'NIFTY';
 let niftyPrice  = 0;
 let prevNifty   = 0;
+let tradeQty    = 75;      // updated per instrument on change
+let isDarkTheme = true;    // dark=true, light=false
 let activePos   = null;
 let currentSig  = null;
-let trades      = generateDemoTrades();
 let ws          = null;
 let wsConnected = false;
 let editingId   = null;
 let pnlChartInst= null;
 let simTick     = 0;
-let isSleeping  = false;       // sleep mode halts price fetch & sim
-let tradeQty    = 75;          // default Nifty lot size — updated per instrument
+let fetchInProgress = false;
+let trades      = generateDemoTrades(); // must come after all vars above
 
 // ══════════════════════════════════════════════
 // DEMO DATA
@@ -550,7 +550,7 @@ function generateDemoTrades(){
     return{id:i+1,instrument:instr,time_of_entry:entryT.toISOString(),entry_price:+ep.toFixed(2),
       time_of_exit:exitT.toISOString(),exit_price:+(ep+pnl/130).toFixed(2),
       reason_of_exit:reasons[Math.floor(Math.random()*reasons.length)],
-      pnl:+pnl.toFixed(2),mode:Math.random()>.3?'PAPER':'LIVE',quantity:tradeQty};
+      pnl:+pnl.toFixed(2),mode:Math.random()>.3?'PAPER':'LIVE',quantity:cfg.defaultQty||75};
   }).sort((a,b)=>new Date(b.time_of_entry)-new Date(a.time_of_entry));
 }
 
